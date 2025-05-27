@@ -1,5 +1,6 @@
 package com.css152lgroup10.noodlemoneybuddy
 
+// remove the duplicates of library imports later
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,7 +28,26 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
-import com.css152lgroup10.noodlemoneybuddy.ui.theme.NoodleMoneyBuddyTheme
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController // Import NavController
+import androidx.navigation.compose.NavHost // Import NavHost
+import androidx.navigation.compose.composable // Import composable
+import androidx.navigation.compose.rememberNavController // Import rememberNavController
+
+// Define route names as constants for better management
+object AppDestinations {
+    const val MENU_SCREEN = "menu"
+    const val CREATE_ORDER_SCREEN = "create_order"
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,9 +55,27 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             NoodleMoneyBuddyTheme {
-                NoodleMoneyBuddyTheme {
-                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                        MenuScreen(modifier = Modifier.padding(innerPadding)) // Changed to MenuScreen
+                // 1. Remember a NavController
+                val navController = rememberNavController()
+
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    // 2. Set up NavHost
+                    NavHost(
+                        navController = navController,
+                        startDestination = AppDestinations.MENU_SCREEN, // Your initial screen
+                        modifier = Modifier.padding(innerPadding)
+                    ) {
+                        // 3. Define composable for the MenuScreen destination
+                        composable(AppDestinations.MENU_SCREEN) {
+                            MenuScreen(
+                                navController = navController // Pass NavController to MenuScreen
+                            )
+                        }
+                        // 4. Define composable for the new EmptyScreen (Create Order) destination
+                        composable(AppDestinations.CREATE_ORDER_SCREEN) {
+                            EmptyScreen() // This is your new empty screen
+                        }
+                        // You can add more destinations here later
                     }
                 }
             }
@@ -46,9 +84,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MenuScreen(modifier: Modifier = Modifier) {
-    // Define a less rounded shape once
-    val lessRoundedButtonShape = RoundedCornerShape(8.dp) // Default is often higher, e.g., 20.dp or more. Adjust 8.dp as needed.
+fun MenuScreen(
+    navController: NavController, // Receive NavController
+    modifier: Modifier = Modifier
+) {
+    val lessRoundedButtonShape = RoundedCornerShape(8.dp)
 
     Column(
         modifier = modifier
@@ -58,8 +98,11 @@ fun MenuScreen(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Button(
-            onClick = { /* TODO: Handle Create Order click */ },
-            shape = lessRoundedButtonShape, // Apply the custom shape
+            onClick = {
+                // Navigate to the create order screen
+                navController.navigate(AppDestinations.CREATE_ORDER_SCREEN)
+            },
+            shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -70,7 +113,7 @@ fun MenuScreen(modifier: Modifier = Modifier) {
 
         Button(
             onClick = { /* TODO: Handle Modify Order click */ },
-            shape = lessRoundedButtonShape, // Apply the custom shape
+            shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -81,7 +124,7 @@ fun MenuScreen(modifier: Modifier = Modifier) {
 
         Button(
             onClick = { /* TODO: Handle View Statistics click */ },
-            shape = lessRoundedButtonShape, // Apply the custom shape
+            shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(0.5f)
@@ -93,25 +136,33 @@ fun MenuScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
+fun EmptyScreen(modifier: Modifier = Modifier) {
+    Column(
         modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    NoodleMoneyBuddyTheme {
-        Greeting("Android")
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("This is the new empty screen for Create Order.")
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
 fun MenuScreenPreview() {
     NoodleMoneyBuddyTheme {
-        MenuScreen()
+        // For preview, you can pass a dummy NavController or handle it differently if needed
+        // For simplicity, this preview won't actually navigate.
+        MenuScreen(navController = rememberNavController())
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun EmptyScreenPreview() {
+    NoodleMoneyBuddyTheme {
+        EmptyScreen()
     }
 }
