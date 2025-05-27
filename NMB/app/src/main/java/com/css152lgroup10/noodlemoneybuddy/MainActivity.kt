@@ -28,8 +28,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.navigation.NavController // Import NavController
+import androidx.navigation.compose.NavHost // Import NavHost
+import androidx.navigation.compose.composable // Import composable
+import androidx.navigation.compose.rememberNavController // Import rememberNavController
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,11 +44,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController // Import NavController
-import androidx.navigation.compose.NavHost // Import NavHost
-import androidx.navigation.compose.composable // Import composable
-import androidx.navigation.compose.rememberNavController // Import rememberNavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.css152lgroup10.noodlemoneybuddy.ui.theme.NoodleMoneyBuddyTheme
 
 // Define route names as constants for better management
 object AppDestinations {
@@ -55,27 +61,54 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             NoodleMoneyBuddyTheme {
-                // 1. Remember a NavController
                 val navController = rememberNavController()
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    // 2. Set up NavHost
                     NavHost(
                         navController = navController,
-                        startDestination = AppDestinations.MENU_SCREEN, // Your initial screen
-                        modifier = Modifier.padding(innerPadding)
+                        startDestination = AppDestinations.MENU_SCREEN,
+                        modifier = Modifier.padding(innerPadding),
+                        // Define global transitions or override per composable
+                        enterTransition = {
+                            // Example: Slide in from the right, faster
+                            slideInHorizontally(
+                                initialOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = tween(durationMillis = 150) // Default is 300ms
+                            ) + fadeIn(animationSpec = tween(durationMillis = 150))
+                        },
+                        exitTransition = {
+                            // Example: Slide out to the left, faster
+                            slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> -fullWidth },
+                                animationSpec = tween(durationMillis = 150)
+                            ) + fadeOut(animationSpec = tween(durationMillis = 150))
+                        },
+                        popEnterTransition = {
+                            // Example: When popping back, slide in from left, faster
+                            slideInHorizontally(
+                                initialOffsetX = { fullWidth -> -fullWidth },
+                                animationSpec = tween(durationMillis = 150)
+                            ) + fadeIn(animationSpec = tween(durationMillis = 150))
+                        },
+                        popExitTransition = {
+                            // Example: When popping back, slide out to right, faster
+                            slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = tween(durationMillis = 150)
+                            ) + fadeOut(animationSpec = tween(durationMillis = 150))
+                        }
                     ) {
-                        // 3. Define composable for the MenuScreen destination
                         composable(AppDestinations.MENU_SCREEN) {
-                            MenuScreen(
-                                navController = navController // Pass NavController to MenuScreen
-                            )
+                            MenuScreen(navController = navController)
                         }
-                        // 4. Define composable for the new EmptyScreen (Create Order) destination
-                        composable(AppDestinations.CREATE_ORDER_SCREEN) {
-                            EmptyScreen() // This is your new empty screen
+                        composable(
+                            route = AppDestinations.CREATE_ORDER_SCREEN,
+                            // You can also override transitions for a specific destination
+                            // enterTransition = { ... },
+                            // exitTransition = { ... }
+                        ) {
+                            EmptyScreen()
                         }
-                        // You can add more destinations here later
                     }
                 }
             }
