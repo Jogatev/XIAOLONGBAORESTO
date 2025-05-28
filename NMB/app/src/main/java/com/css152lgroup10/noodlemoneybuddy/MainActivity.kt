@@ -46,17 +46,46 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.css152lgroup10.noodlemoneybuddy.ui.theme.NoodleMoneyBuddyTheme
 import androidx.navigation.NavOptionsBuilder // Import NavOptionsBuilder
 import androidx.navigation.navOptions // Import navOptions helper
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import androidx.compose.material3.AlertDialog // Import AlertDialog
+import androidx.compose.runtime.getValue // Import getValue
+import androidx.compose.runtime.mutableStateOf // Import mutableStateOf
+import androidx.compose.runtime.remember // Import remember
+import androidx.compose.runtime.setValue // Import setValue
 
 // Define route names as constants for better management
 object AppDestinations {
     const val MENU_SCREEN = "menu"
     const val ORDER_LIST_SCREEN = "order_list"
+}
+
+class ClickDebouncer(private val delayMillis: Long = 500L) { // Default 500ms debounce
+    private var lastClickTime = 0L
+
+    fun processClick(onClick: () -> Unit) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastClickTime > delayMillis) {
+            lastClickTime = currentTime
+            onClick()
+        }
+    }
+}
+
+@Composable
+fun rememberClickDebouncer(delayMillis: Long = 500L): ClickDebouncer {
+    return remember { ClickDebouncer(delayMillis) }
 }
 
 class MainActivity : ComponentActivity() {
@@ -111,6 +140,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 @Composable
 fun MenuScreen(
     navController: NavController,
@@ -125,7 +155,15 @@ fun MenuScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Button(
-            onClick = { navController.navigate(AppDestinations.ORDER_LIST_SCREEN) },
+            onClick = {
+                navController.navigate(AppDestinations.ORDER_LIST_SCREEN) {
+                    launchSingleTop = true
+                    // Optionally, you can also use popUpTo to clear previous instances
+                    // if that's the desired behavior, but launchSingleTop is usually sufficient
+                    // for preventing simple double-tap duplicates.
+                    // popUpTo(AppDestinations.MENU_SCREEN) // Example if you want to pop back to menu before navigating
+                }
+            },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
@@ -153,49 +191,91 @@ fun MenuScreen(
 
 @Composable
 fun OrderListScreen(
-    navController: NavController, // Added NavController for potential back navigation
+    navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val buttonShape = RoundedCornerShape(8.dp) // Consistent button shape
+    val buttonShape = RoundedCornerShape(8.dp)
+    var showCancelConfirmDialog by remember { mutableStateOf(false) } // State for dialog visibility
+
+    // Confirmation Dialog for Cancel
+    if (showCancelConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                // Called when the user clicks outside the dialog or presses the back button
+                // (if DialogProperties make it cancellable)
+                showCancelConfirmDialog = false
+            },
+            title = {
+                Text(text = "Confirm Cancellation")
+            },
+            text = {
+                Text("Are you sure you want to cancel and go back?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCancelConfirmDialog = false
+                        // Proceed with cancellation
+                        if (navController.currentBackStackEntry?.destination?.route == AppDestinations.ORDER_LIST_SCREEN) {
+                            navController.popBackStack()
+                        }
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        showCancelConfirmDialog = false
+                        // Do nothing, just close the dialog
+                    }
+                ) {
+                    Text("No")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp),
-        // verticalArrangement = Arrangement.SpaceBetween // This also works to push to bottom
     ) {
-        // Content for the Order List will go here (e.g., a LazyColumn of orders)
         Text(
             text = "This is the Order List Screen.",
-            modifier = Modifier.align(Alignment.CenterHorizontally) // Center the text
+            modifier = Modifier.align(Alignment.CenterHorizontally)
         )
 
-        Spacer(modifier = Modifier.weight(1f)) // This Spacer pushes the Row to the bottom
+        Spacer(modifier = Modifier.weight(1f))
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp), // Some padding around the button row
-            horizontalArrangement = Arrangement.End, // Aligns buttons to the right (end) of the Row
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
                 onClick = {
-                    // Handle Cancel action, e.g., navigate back
-                    navController.popBackStack() // Example: Go back to the previous screen
+                    showCancelConfirmDialog = true // Show the dialog instead of popping directly
                 },
                 shape = buttonShape,
-                modifier = Modifier.weight(1f) // Give equal weight or adjust as needed
+                modifier = Modifier
+                    .weight(1f)
+                    .height(150.dp) // Set height for Confirm button
             ) {
                 Text("Cancel")
             }
 
-            Spacer(modifier = Modifier.width(16.dp)) // Space between Cancel and Confirm buttons
+            Spacer(modifier = Modifier.width(16.dp))
 
             Button(
                 onClick = { /* TODO: Handle Confirm action */ },
                 shape = buttonShape,
-                modifier = Modifier.weight(1f) // Give equal weight or adjust as needed
+                modifier = Modifier
+                    .weight(1f)
+                    .height(150.dp) // Set height for Confirm button
             ) {
                 Text("Confirm")
             }
