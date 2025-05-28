@@ -39,6 +39,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -194,15 +195,13 @@ fun OrderListScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val buttonShape = RoundedCornerShape(8.dp)
-    var showCancelConfirmDialog by remember { mutableStateOf(false) } // State for dialog visibility
+    val buttonShape = RoundedCornerShape(8.dp) // Main screen button shape
+    var showCancelConfirmDialog by remember { mutableStateOf(false) }
 
     // Confirmation Dialog for Cancel
     if (showCancelConfirmDialog) {
         AlertDialog(
             onDismissRequest = {
-                // Called when the user clicks outside the dialog or presses the back button
-                // (if DialogProperties make it cancellable)
                 showCancelConfirmDialog = false
             },
             title = {
@@ -215,11 +214,16 @@ fun OrderListScreen(
                 Button(
                     onClick = {
                         showCancelConfirmDialog = false
-                        // Proceed with cancellation
                         if (navController.currentBackStackEntry?.destination?.route == AppDestinations.ORDER_LIST_SCREEN) {
                             navController.popBackStack()
                         }
-                    }
+                    },
+                    shape = buttonShape, // Optional: use the same shape
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp) // Add some padding around the button
+                        .defaultMinSize(minHeight = 48.dp) // Ensure a decent minimum touch target size and height
+                    //.width(100.dp) // Or set a fixed width
+                    //.height(60.dp) // Or set a fixed height
                 ) {
                     Text("Yes")
                 }
@@ -228,8 +232,13 @@ fun OrderListScreen(
                 Button(
                     onClick = {
                         showCancelConfirmDialog = false
-                        // Do nothing, just close the dialog
-                    }
+                    },
+                    shape = buttonShape, // Optional: use the same shape
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .defaultMinSize(minHeight = 48.dp)
+                    //.width(100.dp)
+                    //.height(60.dp)
                 ) {
                     Text("No")
                 }
@@ -237,6 +246,7 @@ fun OrderListScreen(
         )
     }
 
+    // ... (Rest of the OrderListScreen Column and Row for main buttons) ...
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -258,12 +268,12 @@ fun OrderListScreen(
         ) {
             Button(
                 onClick = {
-                    showCancelConfirmDialog = true // Show the dialog instead of popping directly
+                    showCancelConfirmDialog = true
                 },
                 shape = buttonShape,
                 modifier = Modifier
                     .weight(1f)
-                    .height(150.dp) // Set height for Confirm button
+                    .height(150.dp)
             ) {
                 Text("Cancel")
             }
@@ -275,13 +285,14 @@ fun OrderListScreen(
                 shape = buttonShape,
                 modifier = Modifier
                     .weight(1f)
-                    .height(150.dp) // Set height for Confirm button
+                    .height(150.dp)
             ) {
                 Text("Confirm")
             }
         }
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
