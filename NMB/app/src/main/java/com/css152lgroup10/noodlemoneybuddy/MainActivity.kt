@@ -214,8 +214,8 @@ fun FullScreenItemSelectionDialog(
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
-            usePlatformDefaultWidth = false, // Crucial for full screen
-            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false,
+            dismissOnClickOutside = true, // Or false, as per your preference
             dismissOnBackPress = true
         )
     ) {
@@ -224,36 +224,53 @@ fun FullScreenItemSelectionDialog(
             topBar = {
                 TopAppBar(
                     title = { Text("Select an Item") }
-                    // Optional: Add a navigation icon to dismiss if needed
-                    // navigationIcon = {
-                    //     IconButton(onClick = onDismissRequest) {
-                    //         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    //     }
-                    // }
                 )
+            },
+            bottomBar = {
+                // The Row is no longer strictly necessary if the Button fills the width,
+                // but it can be kept for structure or if you plan to add other elements later.
+                // For a single full-width button, you can apply modifiers directly to the Button.
+                Button(
+                    onClick = onDismissRequest,
+                    shape = RoundedCornerShape(8.dp), // You can adjust or remove the shape if desired
+                    modifier = Modifier
+                        .fillMaxWidth() // Make the button span the full width
+                        .height(96.dp)  // Set a double height (e.g., 2 * 48.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp) // Apply padding around the button
+                ) {
+                    Text("Cancel", style = MaterialTheme.typography.titleMedium) // Optional: Larger text
+                }
             }
         ) { innerPadding ->
             LazyColumn(
                 modifier = Modifier
-                    .padding(innerPadding)
+                    .padding(
+                        top = innerPadding.calculateTopPadding(),
+                        start = 0.dp,
+                        end = 0.dp,
+                        bottom = innerPadding.calculateBottomPadding()
+                    )
                     .fillMaxSize(),
-                contentPadding = PaddingValues(16.dp)
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
             ) {
                 items(availableMenuItems) { menuItem ->
+                    val itemHeight = 112.dp
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(itemHeight)
                             .padding(vertical = 4.dp)
                             .clickable {
                                 onItemSelected(menuItem)
-                                onDismissRequest() // Dismiss dialog after selection
+                                onDismissRequest()
                             },
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .padding(16.dp)
-                                .fillMaxWidth(),
+                                .fillMaxWidth()
+                                .fillMaxHeight(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
