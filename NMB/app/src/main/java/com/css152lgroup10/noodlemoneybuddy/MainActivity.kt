@@ -72,6 +72,9 @@ object AppDestinations {
     const val ORDER_LIST_SCREEN = "order_list"
 }
 
+/* During the screen animation, the buttons can still be clicked. So if the user spam taps the button,
+you end up opening more than 1 instance of the screen, which we don't want that. This function temporarily
+disables the button for a certain duration, typically as long as the animation takes.*/
 class ClickDebouncer(private val delayMillis: Long = 500L) { // Default 500ms debounce
     private var lastClickTime = 0L
 
@@ -83,11 +86,11 @@ class ClickDebouncer(private val delayMillis: Long = 500L) { // Default 500ms de
         }
     }
 }
-
 @Composable
 fun rememberClickDebouncer(delayMillis: Long = 500L): ClickDebouncer {
     return remember { ClickDebouncer(delayMillis) }
 }
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -141,7 +144,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
+/* This screen comprises the:
+- Create Order button
+- Modify Order button
+- View Statistics button
+ */
 @Composable
 fun MenuScreen(
     navController: NavController,
@@ -184,12 +191,13 @@ fun MenuScreen(
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.5f)
+                .weight(0.5f) // This makes the button smaller compared to the previous 2 buttons
                 .padding(vertical = 8.dp)
         ) { Text("View Statistics") }
     }
 }
 
+// This screen is where the user can add items to the customer's order list.
 @Composable
 fun OrderListScreen(
     navController: NavController,
@@ -245,8 +253,7 @@ fun OrderListScreen(
             }
         )
     }
-
-    // ... (Rest of the OrderListScreen Column and Row for main buttons) ...
+    
     Column(
         modifier = modifier
             .fillMaxSize()
