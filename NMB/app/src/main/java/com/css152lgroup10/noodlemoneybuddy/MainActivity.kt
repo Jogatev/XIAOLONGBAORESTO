@@ -32,13 +32,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,14 +48,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.css152lgroup10.noodlemoneybuddy.ui.theme.NoodleMoneyBuddyTheme
 
-
-// Data class for Order Items
+// Data class for OrderItem
 data class OrderItem(
     val id: String,
     val name: String,
@@ -64,12 +66,45 @@ data class OrderItem(
     fun getTotalPrice(): Double = quantity * price
 }
 
+// Data class for Selectable Menu Items
+data class MenuItem(
+    val id: String,
+    val name: String,
+    val price: Double
+)
+
+// Available menu items
+val availableMenuItems = listOf(
+    MenuItem("noodle_a", "Noodle A", 5.00),
+    MenuItem("noodle_b", "Noodle B", 6.00)
+)
+
 // Define route names as constants
 object AppDestinations {
     const val MENU_SCREEN = "menu"
     const val ORDER_LIST_SCREEN = "order_list"
-    const val ITEM_SELECTION_SCREEN = "item_selection"
+    // ITEM_SELECTION_SCREEN is no longer needed as a separate route
 }
+
+/* During the screen animation, the buttons can still be clicked. So if the user spam taps the button,
+ you end up opening more than 1 instance of the screen, which we don't want that. This function temporarily
+ disables the button for a certain duration, typically as long as the animation takes.*/
+class ClickDebouncer(private val delayMillis: Long = 500L) { // Default 500ms debounce
+    private var lastClickTime = 0L
+
+    fun processClick(onClick: () -> Unit) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastClickTime > delayMillis) {
+            lastClickTime = currentTime
+            onClick()
+        }
+    }
+}
+@Composable
+fun rememberClickDebouncer(delayMillis: Long = 500L): ClickDebouncer {
+    return remember { ClickDebouncer(delayMillis) }
+}
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -112,11 +147,9 @@ class MainActivity : ComponentActivity() {
                             MenuScreen(navController = navController)
                         }
                         composable(AppDestinations.ORDER_LIST_SCREEN) {
-                            OrderListScreen(navController = navController)
+                            OrderListScreen(navController = navController) // Simplified call
                         }
-                        composable(AppDestinations.ITEM_SELECTION_SCREEN) {
-                            ItemSelectionScreen(navController = navController)
-                        }
+                        // No composable for ITEM_SELECTION_SCREEN needed here
                     }
                 }
             }
@@ -125,11 +158,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MenuScreen( // Reverted to previous state without explicit doubled height
+fun MenuScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
     val lessRoundedButtonShape = RoundedCornerShape(8.dp)
+    val debouncer = rememberClickDebouncer()
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -139,36 +174,103 @@ fun MenuScreen( // Reverted to previous state without explicit doubled height
     ) {
         Button(
             onClick = {
-                navController.navigate(AppDestinations.ORDER_LIST_SCREEN) {
-                    launchSingleTop = true
+                debouncer.processClick {
+                    navController.navigate(AppDestinations.ORDER_LIST_SCREEN) {
+                        launchSingleTop = true
+                    }
                 }
             },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // Using weight for proportional height
+                .weight(1f)
                 .padding(vertical = 8.dp)
         ) { Text("Create Order") }
-
         Button(
             onClick = { /* TODO: Handle Modify Order click */ },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // Using weight for proportional height
+                .weight(1f)
                 .padding(vertical = 8.dp)
         ) { Text("Modify Order") }
-
         Button(
             onClick = { /* TODO: Handle View Statistics click */ },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.5f) // Using weight for proportional height (smaller)
+                .weight(0.5f)
                 .padding(vertical = 8.dp)
         ) { Text("View Statistics") }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FullScreenItemSelectionDialog(
+    onDismissRequest: () -> Unit,
+    onItemSelected: (MenuItem) -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false, // Crucial for full screen
+            dismissOnClickOutside = true,
+            dismissOnBackPress = true
+        )
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                TopAppBar(
+                    title = { Text("Select an Item") }
+                    // Optional: Add a navigation icon to dismiss if needed
+                    // navigationIcon = {
+                    //     IconButton(onClick = onDismissRequest) {
+                    //         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    //     }
+                    // }
+                )
+            }
+        ) { innerPadding ->
+            LazyColumn(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                items(availableMenuItems) { menuItem ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                onItemSelected(menuItem)
+                                onDismissRequest() // Dismiss dialog after selection
+                            },
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(menuItem.name, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "$${"%.2f".format(menuItem.price)}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 fun OrderListScreen(
@@ -177,34 +279,40 @@ fun OrderListScreen(
 ) {
     val buttonShape = RoundedCornerShape(8.dp)
     var showCancelConfirmDialog by remember { mutableStateOf(false) }
+    var showItemSelectionDialog by remember { mutableStateOf(false) } // State for the dialog
 
     val orderItems = remember {
-        mutableStateOf(
-            listOf(
-                OrderItem("1", "Noodles A (Sample)", 2, 5.00),
-                OrderItem("2", "Drink B (Sample)", 1, 2.50)
-            )
-        )
+        mutableStateOf(listOf<OrderItem>())
     }
 
-    val selectedItemName = navController.currentBackStackEntry
-        ?.savedStateHandle
-        ?.get<String>("selectedItemName")
-
-    LaunchedEffect(selectedItemName) {
-        if (selectedItemName != null) {
-            val newItemId = (orderItems.value.size + 1).toString()
-            val newItem = OrderItem(id = newItemId, name = selectedItemName, quantity = 1, price = 3.00) // Example price
-            orderItems.value = orderItems.value + newItem
-            navController.currentBackStackEntry?.savedStateHandle?.remove<String>("selectedItemName")
-        }
+    // --- Full-Screen Item Selection Dialog ---
+    if (showItemSelectionDialog) {
+        FullScreenItemSelectionDialog(
+            onDismissRequest = { showItemSelectionDialog = false },
+            onItemSelected = { selectedMenuItem ->
+                val newItemId = (orderItems.value.size + 1 + System.currentTimeMillis()).toString()
+                orderItems.value = orderItems.value + OrderItem(
+                    id = newItemId,
+                    name = selectedMenuItem.name,
+                    quantity = 1, // Default quantity
+                    price = selectedMenuItem.price
+                )
+                // Dialog is dismissed by onDismissRequest within FullScreenItemSelectionDialog
+            }
+        )
     }
 
     if (showCancelConfirmDialog) {
         AlertDialog(
-            onDismissRequest = { showCancelConfirmDialog = false },
-            title = { Text(text = "Confirm Cancellation") },
-            text = { Text("Are you sure you want to cancel and go back?") },
+            onDismissRequest = {
+                showCancelConfirmDialog = false
+            },
+            title = {
+                Text(text = "Confirm Cancellation")
+            },
+            text = {
+                Text("Are you sure you want to cancel and go back?")
+            },
             confirmButton = {
                 Button(
                     onClick = {
@@ -214,15 +322,25 @@ fun OrderListScreen(
                         }
                     },
                     shape = buttonShape,
-                    modifier = Modifier.padding(horizontal = 8.dp).defaultMinSize(minHeight = 48.dp)
-                ) { Text("Yes") }
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text("Yes")
+                }
             },
             dismissButton = {
                 Button(
-                    onClick = { showCancelConfirmDialog = false },
+                    onClick = {
+                        showCancelConfirmDialog = false
+                    },
                     shape = buttonShape,
-                    modifier = Modifier.padding(horizontal = 8.dp).defaultMinSize(minHeight = 48.dp)
-                ) { Text("No") }
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text("No")
+                }
             }
         )
     }
@@ -240,16 +358,24 @@ fun OrderListScreen(
                 Button(
                     onClick = { showCancelConfirmDialog = true },
                     shape = buttonShape,
-                    modifier = Modifier.weight(1f).height(60.dp)
-                ) { Text("Cancel") }
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(60.dp)
+                ) {
+                    Text("Cancel")
+                }
 
                 Spacer(modifier = Modifier.width(16.dp))
 
                 Button(
                     onClick = { /* TODO: Handle Confirm action */ },
                     shape = buttonShape,
-                    modifier = Modifier.weight(1f).height(60.dp)
-                ) { Text("Confirm") }
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(60.dp)
+                ) {
+                    Text("Confirm")
+                }
             }
         }
     ) { innerPadding ->
@@ -260,17 +386,15 @@ fun OrderListScreen(
         ) {
             if (orderItems.value.isEmpty()) {
                 Box(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("Your order list is empty.")
                 }
                 AddItemButtonInList(
-                    onClick = {
-                        navController.navigate(AppDestinations.ITEM_SELECTION_SCREEN) {
-                            launchSingleTop = true
-                        }
-                    },
+                    onClick = { showItemSelectionDialog = true }, // Show the full-screen dialog
                     modifier = Modifier.height(96.dp)
                 )
             } else {
@@ -285,17 +409,14 @@ fun OrderListScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
+
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         AddItemButtonInList(
-                            onClick = {
-                                navController.navigate(AppDestinations.ITEM_SELECTION_SCREEN) {
-                                    launchSingleTop = true
-                                }
-                            },
+                            onClick = { showItemSelectionDialog = true }, // Show the full-screen dialog
                             modifier = Modifier.height(96.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp)) // Added consistent spacing
                     }
                 }
             }
@@ -312,7 +433,7 @@ fun AddItemButtonInList(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp), // Ensure consistent padding
         shape = RoundedCornerShape(8.dp)
     ) {
         Icon(Icons.Filled.Add, contentDescription = "Add new item", modifier = Modifier.padding(end = 8.dp))
@@ -347,78 +468,7 @@ fun OrderItemRow(
     }
 }
 
-@Composable
-fun ItemSelectionScreen(
-    navController: NavController,
-    modifier: Modifier = Modifier
-) {
-    val availableItems = listOf(
-        "Noodle A" to 5.00,
-        "Noodle B" to 6.50,
-        "Drink X" to 2.00,
-        "Side Y" to 3.25
-    )
-    // A typical Card height for a single line of text with padding might be around 56-72dp.
-    // Doubling that would be around 112dp to 144dp. Let's use 120.dp for example.
-    val doubledItemHeight = 120.dp
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Select an Item to Add",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(availableItems) { (itemName, itemPrice) -> // Destructure Pair
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(doubledItemHeight) // Apply doubled height to each item card
-                        .padding(vertical = 4.dp) // Keep some vertical padding between cards
-                        .clickable {
-                            navController.previousBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("selectedItemName", itemName)
-                            navController.popBackStack()
-                        },
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth()
-                            .fillMaxHeight(), // Ensure Row fills the Card's new height
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically // Center content within the taller card
-                    ) {
-                        Text(text = itemName, style = MaterialTheme.typography.titleMedium) // Optionally increase text size
-                        Text(text = "$${"%.2f".format(itemPrice)}", style = MaterialTheme.typography.titleMedium) // Optionally increase text size
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp)) // Space before cancel button
-
-        Button(
-            onClick = { navController.popBackStack() },
-            modifier = Modifier
-                .fillMaxWidth() // Cancel button full width
-                .height(60.dp), // Specific height for cancel button
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text("Cancel")
-        }
-    }
-}
-
-// Previews
-@Preview(showBackground = true, name = "Menu Screen")
+@Preview(showBackground = true)
 @Composable
 fun MenuScreenPreview() {
     NoodleMoneyBuddyTheme {
@@ -426,27 +476,35 @@ fun MenuScreenPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Order List Screen (Empty)")
+@Preview(showBackground = true)
+@Composable
+fun FullScreenItemSelectionDialogPreview() {
+    NoodleMoneyBuddyTheme {
+        // To preview the dialog effectively, you might need a host that allows dialogs to overlay.
+        // This basic preview will render its content.
+        Box(Modifier.fillMaxSize()) { // Simulate a screen context
+            FullScreenItemSelectionDialog(
+                onDismissRequest = {},
+                onItemSelected = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun OrderListScreenPreview() {
+    NoodleMoneyBuddyTheme {
+        OrderListScreen(navController = rememberNavController())
+    }
+}
+
+@Preview(showBackground = true)
 @Composable
 fun OrderListScreenEmptyPreview() {
     NoodleMoneyBuddyTheme {
-        OrderListScreen(navController = rememberNavController())
-    }
-}
-
-@Preview(showBackground = true, name = "Order List Screen (With Items)")
-@Composable
-fun OrderListScreenWithItemsPreview() {
-    NoodleMoneyBuddyTheme {
-        OrderListScreen(navController = rememberNavController())
-    }
-}
-
-
-@Preview(showBackground = true, name = "Item Selection Screen")
-@Composable
-fun ItemSelectionScreenPreview() {
-    NoodleMoneyBuddyTheme {
-        ItemSelectionScreen(navController = rememberNavController())
+        OrderListScreen(
+            navController = rememberNavController()
+        )
     }
 }
