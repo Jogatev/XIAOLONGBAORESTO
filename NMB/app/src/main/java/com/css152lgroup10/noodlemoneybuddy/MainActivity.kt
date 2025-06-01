@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,11 +22,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -33,7 +32,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -47,20 +45,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.isEmpty
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navOptions
 import com.css152lgroup10.noodlemoneybuddy.ui.theme.NoodleMoneyBuddyTheme
-import kotlinx.coroutines.delay
 
 
-// Data class (if not in a separate file)
+// Data class for Order Items
 data class OrderItem(
     val id: String,
     val name: String,
@@ -70,31 +64,12 @@ data class OrderItem(
     fun getTotalPrice(): Double = quantity * price
 }
 
-// Define route names as constants for better management
+// Define route names as constants
 object AppDestinations {
     const val MENU_SCREEN = "menu"
     const val ORDER_LIST_SCREEN = "order_list"
+    const val ITEM_SELECTION_SCREEN = "item_selection"
 }
-
-/* During the screen animation, the buttons can still be clicked. So if the user spam taps the button,
-you end up opening more than 1 instance of the screen, which we don't want that. This function temporarily
-disables the button for a certain duration, typically as long as the animation takes.*/
-class ClickDebouncer(private val delayMillis: Long = 500L) { // Default 500ms debounce
-    private var lastClickTime = 0L
-
-    fun processClick(onClick: () -> Unit) {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastClickTime > delayMillis) {
-            lastClickTime = currentTime
-            onClick()
-        }
-    }
-}
-@Composable
-fun rememberClickDebouncer(delayMillis: Long = 500L): ClickDebouncer {
-    return remember { ClickDebouncer(delayMillis) }
-}
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,7 +83,6 @@ class MainActivity : ComponentActivity() {
                         navController = navController,
                         startDestination = AppDestinations.MENU_SCREEN,
                         modifier = Modifier.padding(innerPadding),
-                        // ... (your existing transitions)
                         enterTransition = {
                             slideInHorizontally(
                                 initialOffsetX = { fullWidth -> fullWidth },
@@ -138,8 +112,10 @@ class MainActivity : ComponentActivity() {
                             MenuScreen(navController = navController)
                         }
                         composable(AppDestinations.ORDER_LIST_SCREEN) {
-                            // Pass NavController if Cancel needs to navigate back, for example
                             OrderListScreen(navController = navController)
+                        }
+                        composable(AppDestinations.ITEM_SELECTION_SCREEN) {
+                            ItemSelectionScreen(navController = navController)
                         }
                     }
                 }
@@ -148,13 +124,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/* This screen comprises the:
-- Create Order button
-- Modify Order button
-- View Statistics button
- */
 @Composable
-fun MenuScreen(
+fun MenuScreen( // Reverted to previous state without explicit doubled height
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
@@ -170,67 +141,70 @@ fun MenuScreen(
             onClick = {
                 navController.navigate(AppDestinations.ORDER_LIST_SCREEN) {
                     launchSingleTop = true
-                    // Optionally, you can also use popUpTo to clear previous instances
-                    // if that's the desired behavior, but launchSingleTop is usually sufficient
-                    // for preventing simple double-tap duplicates.
-                    // popUpTo(AppDestinations.MENU_SCREEN) // Example if you want to pop back to menu before navigating
                 }
             },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f) // Using weight for proportional height
                 .padding(vertical = 8.dp)
         ) { Text("Create Order") }
+
         Button(
             onClick = { /* TODO: Handle Modify Order click */ },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f) // Using weight for proportional height
                 .padding(vertical = 8.dp)
         ) { Text("Modify Order") }
+
         Button(
             onClick = { /* TODO: Handle View Statistics click */ },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.5f) // This makes the button smaller compared to the previous 2 buttons
+                .weight(0.5f) // Using weight for proportional height (smaller)
                 .padding(vertical = 8.dp)
         ) { Text("View Statistics") }
     }
 }
 
-// This screen is where the user can add items to the customer's order list.
 @Composable
 fun OrderListScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val buttonShape = RoundedCornerShape(8.dp) // Consistent button shape
+    val buttonShape = RoundedCornerShape(8.dp)
     var showCancelConfirmDialog by remember { mutableStateOf(false) }
 
     val orderItems = remember {
         mutableStateOf(
             listOf(
-                OrderItem("1", "Noodles A", 2, 5.00),
-                OrderItem("2", "Drink B", 1, 2.50)
+                OrderItem("1", "Noodles A (Sample)", 2, 5.00),
+                OrderItem("2", "Drink B (Sample)", 1, 2.50)
             )
         )
     }
 
-    // Confirmation Dialog for Cancel
+    val selectedItemName = navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.get<String>("selectedItemName")
+
+    LaunchedEffect(selectedItemName) {
+        if (selectedItemName != null) {
+            val newItemId = (orderItems.value.size + 1).toString()
+            val newItem = OrderItem(id = newItemId, name = selectedItemName, quantity = 1, price = 3.00) // Example price
+            orderItems.value = orderItems.value + newItem
+            navController.currentBackStackEntry?.savedStateHandle?.remove<String>("selectedItemName")
+        }
+    }
+
     if (showCancelConfirmDialog) {
         AlertDialog(
-            onDismissRequest = {
-                showCancelConfirmDialog = false
-            },
-            title = {
-                Text(text = "Confirm Cancellation")
-            },
-            text = {
-                Text("Are you sure you want to cancel and go back?")
-            },
+            onDismissRequest = { showCancelConfirmDialog = false },
+            title = { Text(text = "Confirm Cancellation") },
+            text = { Text("Are you sure you want to cancel and go back?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -239,26 +213,16 @@ fun OrderListScreen(
                             navController.popBackStack()
                         }
                     },
-                    shape = buttonShape, // Use consistent shape
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp) // Padding for dialog buttons
-                        .defaultMinSize(minHeight = 48.dp) // Minimum touch target
-                ) {
-                    Text("Yes")
-                }
+                    shape = buttonShape,
+                    modifier = Modifier.padding(horizontal = 8.dp).defaultMinSize(minHeight = 48.dp)
+                ) { Text("Yes") }
             },
             dismissButton = {
                 Button(
-                    onClick = {
-                        showCancelConfirmDialog = false
-                    },
-                    shape = buttonShape, // Use consistent shape
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp) // Padding for dialog buttons
-                        .defaultMinSize(minHeight = 48.dp) // Minimum touch target
-                ) {
-                    Text("No")
-                }
+                    onClick = { showCancelConfirmDialog = false },
+                    shape = buttonShape,
+                    modifier = Modifier.padding(horizontal = 8.dp).defaultMinSize(minHeight = 48.dp)
+                ) { Text("No") }
             }
         )
     }
@@ -269,78 +233,67 @@ fun OrderListScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp), // Padding for the Row
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
-                    onClick = { showCancelConfirmDialog = true }, // Show dialog
+                    onClick = { showCancelConfirmDialog = true },
                     shape = buttonShape,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(60.dp) // Set height for bottom bar buttons
-                ) {
-                    Text("Cancel")
-                }
+                    modifier = Modifier.weight(1f).height(60.dp)
+                ) { Text("Cancel") }
 
-                Spacer(modifier = Modifier.width(16.dp)) // Space between buttons
+                Spacer(modifier = Modifier.width(16.dp))
 
                 Button(
                     onClick = { /* TODO: Handle Confirm action */ },
                     shape = buttonShape,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(60.dp) // Set height for bottom bar buttons
-                ) {
-                    Text("Confirm")
-                }
+                    modifier = Modifier.weight(1f).height(60.dp)
+                ) { Text("Confirm") }
             }
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
-                .padding(innerPadding) // Apply padding from Scaffold
+                .padding(innerPadding)
                 .fillMaxSize()
         ) {
             if (orderItems.value.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("Your order list is empty.")
                 }
-                // "Add Item" button for empty state
                 AddItemButtonInList(
                     onClick = {
-                        val newItemId = (orderItems.value.size + 1).toString()
-                        orderItems.value = orderItems.value + OrderItem(newItemId, "New Item $newItemId", 1, 1.00)
+                        navController.navigate(AppDestinations.ITEM_SELECTION_SCREEN) {
+                            launchSingleTop = true
+                        }
                     },
-                    modifier = Modifier.height(96.dp) // Height for AddItemButton
+                    modifier = Modifier.height(96.dp)
                 )
             } else {
                 LazyColumn(
-                    modifier = Modifier.weight(1f), // LazyColumn takes available space
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
                 ) {
                     items(orderItems.value, key = { item -> item.id }) { item ->
                         OrderItemRow(
                             item = item,
-                            modifier = Modifier.height(144.dp) // Height for OrderItemRow
+                            modifier = Modifier.height(144.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
-
-                    // "Add Item" button at the end of the list
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         AddItemButtonInList(
                             onClick = {
-                                val newItemId = (orderItems.value.size + 1).toString()
-                                orderItems.value = orderItems.value + OrderItem(newItemId, "New Item $newItemId", 1, 1.00)
+                                navController.navigate(AppDestinations.ITEM_SELECTION_SCREEN) {
+                                    launchSingleTop = true
+                                }
                             },
-                            modifier = Modifier.height(96.dp) // Height for AddItemButton
+                            modifier = Modifier.height(96.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -350,7 +303,6 @@ fun OrderListScreen(
     }
 }
 
-// AddItemButtonInList Composable
 @Composable
 fun AddItemButtonInList(
     onClick: () -> Unit,
@@ -358,9 +310,9 @@ fun AddItemButtonInList(
 ) {
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier // Apply the passed modifier (which includes height)
+        modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp), // Keep existing internal padding or adjust
+            .padding(vertical = 8.dp),
         shape = RoundedCornerShape(8.dp)
     ) {
         Icon(Icons.Filled.Add, contentDescription = "Add new item", modifier = Modifier.padding(end = 8.dp))
@@ -368,14 +320,13 @@ fun AddItemButtonInList(
     }
 }
 
-// OrderItemRow Composable
 @Composable
 fun OrderItemRow(
     item: OrderItem,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier // Apply the passed modifier (which includes height)
+        modifier = modifier
             .fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -383,7 +334,7 @@ fun OrderItemRow(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth()
-                .fillMaxHeight(), // Allow content to fill the new card height
+                .fillMaxHeight(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -396,7 +347,78 @@ fun OrderItemRow(
     }
 }
 
-@Preview(showBackground = true)
+@Composable
+fun ItemSelectionScreen(
+    navController: NavController,
+    modifier: Modifier = Modifier
+) {
+    val availableItems = listOf(
+        "Noodle A" to 5.00,
+        "Noodle B" to 6.50,
+        "Drink X" to 2.00,
+        "Side Y" to 3.25
+    )
+    // A typical Card height for a single line of text with padding might be around 56-72dp.
+    // Doubling that would be around 112dp to 144dp. Let's use 120.dp for example.
+    val doubledItemHeight = 120.dp
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Select an Item to Add",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            items(availableItems) { (itemName, itemPrice) -> // Destructure Pair
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(doubledItemHeight) // Apply doubled height to each item card
+                        .padding(vertical = 4.dp) // Keep some vertical padding between cards
+                        .clickable {
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("selectedItemName", itemName)
+                            navController.popBackStack()
+                        },
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth()
+                            .fillMaxHeight(), // Ensure Row fills the Card's new height
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically // Center content within the taller card
+                    ) {
+                        Text(text = itemName, style = MaterialTheme.typography.titleMedium) // Optionally increase text size
+                        Text(text = "$${"%.2f".format(itemPrice)}", style = MaterialTheme.typography.titleMedium) // Optionally increase text size
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp)) // Space before cancel button
+
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier
+                .fillMaxWidth() // Cancel button full width
+                .height(60.dp), // Specific height for cancel button
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text("Cancel")
+        }
+    }
+}
+
+// Previews
+@Preview(showBackground = true, name = "Menu Screen")
 @Composable
 fun MenuScreenPreview() {
     NoodleMoneyBuddyTheme {
@@ -404,11 +426,27 @@ fun MenuScreenPreview() {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "Order List Screen (Empty)")
 @Composable
-fun OrderListScreenPreview() {
+fun OrderListScreenEmptyPreview() {
     NoodleMoneyBuddyTheme {
-        val navController = rememberNavController()
-        OrderListScreen(navController = navController)
+        OrderListScreen(navController = rememberNavController())
+    }
+}
+
+@Preview(showBackground = true, name = "Order List Screen (With Items)")
+@Composable
+fun OrderListScreenWithItemsPreview() {
+    NoodleMoneyBuddyTheme {
+        OrderListScreen(navController = rememberNavController())
+    }
+}
+
+
+@Preview(showBackground = true, name = "Item Selection Screen")
+@Composable
+fun ItemSelectionScreenPreview() {
+    NoodleMoneyBuddyTheme {
+        ItemSelectionScreen(navController = rememberNavController())
     }
 }
