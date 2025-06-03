@@ -1,20 +1,17 @@
-package com.css152lgroup10.noodlemoneybuddy
+package com.css1521group10.noodlemoneybuddy
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.*
-import com.css152lgroup10.noodlemoneybuddy.ui.screens.OrderListScreen
-import com.css152lgroup10.noodlemoneybuddy.ui.theme.POSSystemTheme
+import com.css1521group10.noodlemoneybuddy.ui.screens.POSSystemScreen
+import com.css1521group10.noodlemoneybuddy.ui.theme.NoodleMoneyBuddyTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            POSSystemTheme {
-                Surface {
-                    OrderListScreen()
-                }
+            NoodleMoneyBuddyTheme {
+                POSSystemScreen()
             }
         }
     }
