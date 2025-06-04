@@ -251,7 +251,7 @@ fun FullScreenItemSelectionDialog(
                         ) {
                             Text(menuItem.name, style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "$${"%.2f".format(menuItem.price)}",
+                                "₱${"%.2f".format(menuItem.price)}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -482,9 +482,9 @@ fun OrderListScreen(
                 // Display Total Cost if there are items
                 if (orderItems.value.isNotEmpty()) {
                     Text(
-                        text = "Total: $${"%.2f".format(totalCost)}",
-                        style = MaterialTheme.typography.titleLarge, // Or any style you prefer
-                        modifier = Modifier.padding(bottom = 8.dp) // Add some spacing
+                        text = "Total: ₱${"%.2f".format(totalCost)}", // Changed from $ to ₱
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
                 }
 
@@ -646,7 +646,7 @@ fun OrderItemRow(
                 ) {
                     Text(text = item.name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "$${"%.2f".format(item.price)} / item",
+                        text = "₱${"%.2f".format(item.price)} / item",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 2.dp)
                     )
@@ -691,7 +691,7 @@ fun OrderItemRow(
                         }
                     }
                     Text(
-                        text = "$${"%.2f".format(item.getTotalPrice())}",
+                        text = "₱${"%.2f".format(item.getTotalPrice())}",
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.End
                     )
