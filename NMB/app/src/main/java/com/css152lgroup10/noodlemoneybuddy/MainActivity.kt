@@ -36,6 +36,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.css152lgroup10.noodlemoneybuddy.ui.theme.NoodleMoneyBuddyTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 
 // Data class for OrderItem
 data class OrderItem(
@@ -380,6 +388,11 @@ fun OrderListScreen(
     var showItemSelectionDialog by remember { mutableStateOf(false) }
     var selectedMenuItemForQuantity by remember { mutableStateOf<MenuItem?>(null) }
     var showFullScreenQuantityDialog by remember { mutableStateOf(false) }
+    var showAmountTenderedDialog by remember { mutableStateOf(false) }
+    var amountTenderedInput by remember { mutableStateOf("") }
+    // Add a state to hold the change to be displayed after successful payment
+    var changeAmount by remember { mutableStateOf<Double?>(null) }
+    var showPaymentSuccessDialog by remember { mutableStateOf(false) }
 
     val orderItems = remember { mutableStateOf(listOf<OrderItem>()) }
 
@@ -449,7 +462,94 @@ fun OrderListScreen(
                     onClick = { showCancelOrderConfirmDialog = false },
                     shape = buttonShape,
                     modifier = Modifier.padding(horizontal = 8.dp).defaultMinSize(minHeight = 48.dp)
-                ) { Text("No") }
+                ) { Text("No, Stay") }
+            }
+        )
+    }
+
+    // --- Amount Tendered Dialog ---
+    if (showAmountTenderedDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAmountTenderedDialog = false
+                amountTenderedInput = "" // Clear input on dismiss
+            },
+            title = { Text(text = "Enter Amount Tendered") },
+            text = {
+                Column {
+                    Text("Total amount to pay: ₱${"%.2f".format(totalCost)}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = amountTenderedInput,
+                        onValueChange = { amountTenderedInput = it.filter { char -> char.isDigit() || char == '.' } },
+                        label = { Text("Amount") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        prefix = { Text("₱") }
+                    )
+                    // You can add error text here if amountTenderedInput is invalid
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val tendered = amountTenderedInput.toDoubleOrNull()
+                        if (tendered != null && tendered >= totalCost) {
+                            changeAmount = tendered - totalCost
+                            showAmountTenderedDialog = false
+                            showPaymentSuccessDialog = true // Show success dialog
+                            // TODO: Here you would typically process the order:
+                            // - Save the order
+                            // - Clear the current orderItems.value = emptyList()
+                            // - Navigate to a success screen or back
+                            // For now, we'll just show a success dialog and clear items
+                        } else {
+                            // TODO: Show error (e.g., amount too low or invalid)
+                            // You might use another state for this error message
+                        }
+                    },
+                    enabled = amountTenderedInput.toDoubleOrNull() != null && (amountTenderedInput.toDoubleOrNull() ?: 0.0) >= totalCost
+                ) { Text("Pay") }
+            },
+            dismissButton = {
+                TextButton( // Using TextButton for a less prominent "Cancel"
+                    onClick = {
+                        showAmountTenderedDialog = false
+                        amountTenderedInput = "" // Clear input on cancel
+                    }
+                ) { Text("Cancel") }
+            }
+        )
+    }
+
+    // --- Payment Success / Change Dialog ---
+    if (showPaymentSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showPaymentSuccessDialog = false
+                orderItems.value = emptyList() // Clear items after dismissing success dialog
+                // Optionally navigate away or reset further
+                navController.popBackStack(AppDestinations.MENU_SCREEN, inclusive = false)
+
+            },
+            title = { Text("Payment Successful!") },
+            text = {
+                Column {
+                    Text("Total Paid: ₱${"%.2f".format(amountTenderedInput.toDoubleOrNull() ?: 0.0)}")
+                    Text("Change: ₱${"%.2f".format(changeAmount ?: 0.0)}")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Thank you for your order!")
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPaymentSuccessDialog = false
+                        orderItems.value = emptyList() // Clear items
+                        // Navigate back to menu or order list, adjust as needed
+                        navController.popBackStack(AppDestinations.MENU_SCREEN, inclusive = false)
+                    }
+                ) { Text("New Order") }
             }
         )
     }
@@ -502,7 +602,13 @@ fun OrderListScreen(
                     Spacer(modifier = Modifier.width(16.dp))
 
                     Button(
-                        onClick = { /* TODO: Handle Confirm Order action */ },
+                        onClick = {
+                            if (orderItems.value.isNotEmpty()) { // Only show if there are items
+                                amountTenderedInput = "" // Reset previous input
+                                changeAmount = null // Reset previous change
+                                showAmountTenderedDialog = true
+                            }
+                        },
                         shape = buttonShape,
                         modifier = Modifier.weight(1f).height(60.dp),
                         enabled = orderItems.value.isNotEmpty()
