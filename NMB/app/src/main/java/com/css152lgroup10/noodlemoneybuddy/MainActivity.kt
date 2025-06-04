@@ -9,50 +9,23 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.* // ktlint-disable no-wildcard-imports
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-// import androidx.compose.foundation.text.KeyboardOptions // No longer needed for quantity
+import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-// import androidx.compose.material3.TextField // No longer needed for quantity
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.* // ktlint-disable no-wildcard-imports
+import androidx.compose.runtime.* // ktlint-disable no-wildcard-imports
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-// import androidx.compose.ui.text.input.KeyboardType // No longer needed for quantity
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -265,7 +238,6 @@ fun FullScreenItemSelectionDialog(
                             .padding(vertical = 4.dp)
                             .clickable {
                                 onItemSelected(menuItem)
-                                // Dialog dismissal is handled by OrderListScreen after quantity selection step
                             },
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
@@ -304,7 +276,7 @@ fun FullScreenQuantitySelectionDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
-            dismissOnClickOutside = false, // Force interaction with buttons
+            dismissOnClickOutside = false,
             dismissOnBackPress = true
         )
     ) {
@@ -404,7 +376,7 @@ fun OrderListScreen(
     modifier: Modifier = Modifier
 ) {
     val buttonShape = RoundedCornerShape(8.dp)
-    var showCancelOrderConfirmDialog by remember { mutableStateOf(false) } // Renamed for clarity
+    var showCancelOrderConfirmDialog by remember { mutableStateOf(false) }
     var showItemSelectionDialog by remember { mutableStateOf(false) }
     var selectedMenuItemForQuantity by remember { mutableStateOf<MenuItem?>(null) }
     var showFullScreenQuantityDialog by remember { mutableStateOf(false) }
@@ -418,7 +390,7 @@ fun OrderListScreen(
             onItemSelected = { selectedMenuItem ->
                 selectedMenuItemForQuantity = selectedMenuItem
                 showFullScreenQuantityDialog = true
-                showItemSelectionDialog = false // Dismiss item selection dialog after selection
+                showItemSelectionDialog = false
             }
         )
     }
@@ -430,7 +402,7 @@ fun OrderListScreen(
                 menuItem = menuItem,
                 onDismissRequest = {
                     showFullScreenQuantityDialog = false
-                    selectedMenuItemForQuantity = null // Clear selection
+                    selectedMenuItemForQuantity = null
                 },
                 onConfirm = { quantity ->
                     val newItemId = (orderItems.value.size + 1 + System.currentTimeMillis()).toString()
@@ -441,7 +413,7 @@ fun OrderListScreen(
                         price = menuItem.price
                     )
                     showFullScreenQuantityDialog = false
-                    selectedMenuItemForQuantity = null // Clear selection
+                    selectedMenuItemForQuantity = null
                 }
             )
         }
@@ -453,8 +425,8 @@ fun OrderListScreen(
             onDismissRequest = {
                 showCancelOrderConfirmDialog = false
             },
-            title = { Text(text = "Confirm Order Cancellation") }, // Clarified title
-            text = { Text("Are you sure you want to cancel this order and go back?") }, // Clarified text
+            title = { Text(text = "Confirm Order Cancellation") },
+            text = { Text("Are you sure you want to cancel this order and go back?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -475,6 +447,21 @@ fun OrderListScreen(
                 ) { Text("No") }
             }
         )
+    }
+
+    fun updateQuantity(itemId: String, change: Int) {
+        orderItems.value = orderItems.value.map {
+            if (it.id == itemId) {
+                val newQuantity = it.quantity + change
+                it.copy(quantity = if (newQuantity > 0) newQuantity else 1) // Ensure quantity doesn't go below 1
+            } else {
+                it
+            }
+        }
+    }
+
+    fun removeItem(itemId: String) {
+        orderItems.value = orderItems.value.filterNot { it.id == itemId }
     }
 
     Scaffold(
@@ -499,7 +486,7 @@ fun OrderListScreen(
                     onClick = { /* TODO: Handle Confirm Order action */ },
                     shape = buttonShape,
                     modifier = Modifier.weight(1f).height(60.dp),
-                    enabled = orderItems.value.isNotEmpty() // Disable if order is empty
+                    enabled = orderItems.value.isNotEmpty()
                 ) { Text("Confirm Order") }
             }
         }
@@ -513,7 +500,7 @@ fun OrderListScreen(
                 Box(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     contentAlignment = Alignment.Center
-                ) { Text("Your order list is empty. Add items to get started!") } // Encouraging text
+                ) { Text("Your order list is empty. Add items to get started!") }
                 AddItemButtonInList(
                     onClick = { showItemSelectionDialog = true },
                     modifier = Modifier.height(96.dp)
@@ -523,12 +510,18 @@ fun OrderListScreen(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
                 ) {
-                    items(orderItems.value, key = { item -> item.id }) { item ->
+                    items(
+                        items = orderItems.value,
+                        key = { item -> item.id }
+                    ) { item ->
                         OrderItemRow(
                             item = item,
-                            modifier = Modifier.height(144.dp) // Increased height for more content
+                            onIncreaseQuantity = { updateQuantity(item.id, 1) },
+                            onDecreaseQuantity = { updateQuantity(item.id, -1) },
+                            onDismissed = { removeItem(item.id) },
+                            modifier = Modifier.wrapContentHeight() // Important for SwipeToDismissBox
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp)) // Spacer between items
                     }
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -536,7 +529,7 @@ fun OrderListScreen(
                             onClick = { showItemSelectionDialog = true },
                             modifier = Modifier.height(96.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp)) // Padding at the bottom of the list
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
@@ -561,38 +554,135 @@ fun AddItemButtonInList(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderItemRow(
     item: OrderItem,
-    modifier: Modifier = Modifier
+    onIncreaseQuantity: () -> Unit,
+    onDecreaseQuantity: () -> Unit,
+    onDismissed: () -> Unit,
+    modifier: Modifier = Modifier // This modifier is now for the SwipeToDismissBox
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth()
-                .fillMaxHeight(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = item.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = "Qty: ${item.quantity} x $${"%.2f".format(item.price)} / item", // Clarified price
-                    style = MaterialTheme.typography.bodySmall
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            if (dismissValue == SwipeToDismissBoxValue.EndToStart || dismissValue == SwipeToDismissBoxValue.StartToEnd) {
+                onDismissed()
+                true
+            } else {
+                false
+            }
+        },
+        positionalThreshold = { it * 0.25f }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = modifier, // Apply the main modifier here
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val color = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.errorContainer
+                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
+                else -> Color.Transparent
+            }
+            val alignment = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
+                else -> Alignment.Center
+            }
+            val icon = Icons.Filled.Delete
+
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(color, shape = RoundedCornerShape(8.dp)) // Match card's corners
+                    .padding(horizontal = 20.dp),
+                contentAlignment = alignment
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = "Delete Icon",
+                    tint = MaterialTheme.colorScheme.onErrorContainer
                 )
             }
-            Text(
-                text = "$${"%.2f".format(item.getTotalPrice())}",
-                style = MaterialTheme.typography.titleLarge // Made total price more prominent
-            )
+        }
+    ) {
+        // Content of the swipeable item (the Card)
+        Card(
+            modifier = Modifier.fillMaxWidth(), // Card itself fills width within SwipeToDismissBox
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(text = item.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "$${"%.2f".format(item.price)} / item",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    ) {
+                        IconButton(
+                            onClick = onDecreaseQuantity,
+                            modifier = Modifier.size(36.dp),
+                            enabled = item.quantity > 1
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = "Decrease quantity",
+                                tint = if (item.quantity > 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        }
+                        Text(
+                            text = "${item.quantity}",
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .padding(horizontal = 8.dp)
+                                .defaultMinSize(minWidth = 24.dp)
+                        )
+                        IconButton(
+                            onClick = onIncreaseQuantity,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AddCircle,
+                                contentDescription = "Increase quantity",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Text(
+                        text = "$${"%.2f".format(item.getTotalPrice())}",
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
         }
     }
 }
+
+
+// --- Previews ---
 
 @Preview(showBackground = true)
 @Composable
@@ -631,20 +721,37 @@ fun FullScreenQuantitySelectionDialogPreview() {
 
 @Preview(showBackground = true)
 @Composable
-fun OrderListScreenPreview() {
+fun OrderListScreenWithItemsPreview() {
     NoodleMoneyBuddyTheme {
-        // Simulate some items for a more complete preview
-        val navController = rememberNavController()
-        val sampleItems = remember {
-            mutableStateOf(listOf(
-                OrderItem("1", "Noodle A", 2, 5.00),
-                OrderItem("2", "Drink C", 1, 2.50)
-            ))
+        // This preview will show the empty state.
+        // To see items with swipe, run on an emulator/device and add items.
+        OrderListScreen(navController = rememberNavController())
+    }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun OrderItemRowPreview() {
+    NoodleMoneyBuddyTheme {
+        Column(Modifier.padding(8.dp).background(Color.LightGray)) { // Added background to preview swipes
+            // To effectively preview SwipeToDismissBox, you often need to interact with it.
+            // These previews will show the static card.
+            OrderItemRow(
+                item = OrderItem("1", "Noodle A (Swipe Me!)", 1, 5.00),
+                onIncreaseQuantity = {},
+                onDecreaseQuantity = {},
+                onDismissed = {}, // In a real app, this would remove the item
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+            OrderItemRow(
+                item = OrderItem("2", "Drink C (Swipe Me!)", 5, 2.50),
+                onIncreaseQuantity = {},
+                onDecreaseQuantity = {},
+                onDismissed = {},
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
         }
-        // This preview won't actually update sampleItems via dialogs,
-        // but it shows how the list looks with items.
-        // For actual interaction, run on an emulator/device.
-        OrderListScreen(navController = navController) // Pass the real mutableState for a full test
     }
 }
 
