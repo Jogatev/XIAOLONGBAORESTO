@@ -472,7 +472,7 @@ fun OrderListScreen(
                     onClick = { showCancelOrderConfirmDialog = false },
                     shape = buttonShape,
                     modifier = Modifier.padding(horizontal = 8.dp).defaultMinSize(minHeight = 48.dp)
-                ) { Text("No") }
+                ) { Text("No, Stay") }
             }
         )
     }
