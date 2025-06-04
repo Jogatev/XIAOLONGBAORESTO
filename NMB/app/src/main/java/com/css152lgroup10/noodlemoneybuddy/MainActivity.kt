@@ -10,49 +10,21 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.* // ktlint-disable no-wildcard-imports
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-// import androidx.compose.foundation.text.KeyboardOptions // No longer needed for quantity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-// import androidx.compose.material3.TextField // No longer needed for quantity
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.* // ktlint-disable no-wildcard-imports
+import androidx.compose.runtime.* // ktlint-disable no-wildcard-imports
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-// import androidx.compose.ui.text.input.KeyboardType // No longer needed for quantity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -265,7 +237,6 @@ fun FullScreenItemSelectionDialog(
                             .padding(vertical = 4.dp)
                             .clickable {
                                 onItemSelected(menuItem)
-                                // Dialog dismissal is handled by OrderListScreen after quantity selection step
                             },
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
@@ -304,7 +275,7 @@ fun FullScreenQuantitySelectionDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
-            dismissOnClickOutside = false, // Force interaction with buttons
+            dismissOnClickOutside = false,
             dismissOnBackPress = true
         )
     ) {
@@ -404,7 +375,7 @@ fun OrderListScreen(
     modifier: Modifier = Modifier
 ) {
     val buttonShape = RoundedCornerShape(8.dp)
-    var showCancelOrderConfirmDialog by remember { mutableStateOf(false) } // Renamed for clarity
+    var showCancelOrderConfirmDialog by remember { mutableStateOf(false) }
     var showItemSelectionDialog by remember { mutableStateOf(false) }
     var selectedMenuItemForQuantity by remember { mutableStateOf<MenuItem?>(null) }
     var showFullScreenQuantityDialog by remember { mutableStateOf(false) }
@@ -418,7 +389,7 @@ fun OrderListScreen(
             onItemSelected = { selectedMenuItem ->
                 selectedMenuItemForQuantity = selectedMenuItem
                 showFullScreenQuantityDialog = true
-                showItemSelectionDialog = false // Dismiss item selection dialog after selection
+                showItemSelectionDialog = false
             }
         )
     }
@@ -430,7 +401,7 @@ fun OrderListScreen(
                 menuItem = menuItem,
                 onDismissRequest = {
                     showFullScreenQuantityDialog = false
-                    selectedMenuItemForQuantity = null // Clear selection
+                    selectedMenuItemForQuantity = null
                 },
                 onConfirm = { quantity ->
                     val newItemId = (orderItems.value.size + 1 + System.currentTimeMillis()).toString()
@@ -441,7 +412,7 @@ fun OrderListScreen(
                         price = menuItem.price
                     )
                     showFullScreenQuantityDialog = false
-                    selectedMenuItemForQuantity = null // Clear selection
+                    selectedMenuItemForQuantity = null
                 }
             )
         }
@@ -453,8 +424,8 @@ fun OrderListScreen(
             onDismissRequest = {
                 showCancelOrderConfirmDialog = false
             },
-            title = { Text(text = "Confirm Order Cancellation") }, // Clarified title
-            text = { Text("Are you sure you want to cancel this order and go back?") }, // Clarified text
+            title = { Text(text = "Confirm Order Cancellation") },
+            text = { Text("Are you sure you want to cancel this order and go back?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -475,6 +446,19 @@ fun OrderListScreen(
                 ) { Text("No, Stay") }
             }
         )
+    }
+
+    fun updateQuantity(itemId: String, change: Int) {
+        orderItems.value = orderItems.value.map {
+            if (it.id == itemId) {
+                val newQuantity = it.quantity + change
+                it.copy(quantity = if (newQuantity > 0) newQuantity else 1) // Ensure quantity doesn't go below 1
+            } else {
+                it
+            }
+        }.filter { it.quantity > 0 } // Optionally, remove item if quantity becomes 0 - depends on desired behavior
+        // For now, we ensure it's at least 1, so filter isn't strictly needed here
+        // but could be useful if items could be "removed" by setting qty to 0.
     }
 
     Scaffold(
@@ -499,7 +483,7 @@ fun OrderListScreen(
                     onClick = { /* TODO: Handle Confirm Order action */ },
                     shape = buttonShape,
                     modifier = Modifier.weight(1f).height(60.dp),
-                    enabled = orderItems.value.isNotEmpty() // Disable if order is empty
+                    enabled = orderItems.value.isNotEmpty()
                 ) { Text("Confirm Order") }
             }
         }
@@ -513,7 +497,7 @@ fun OrderListScreen(
                 Box(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     contentAlignment = Alignment.Center
-                ) { Text("Your order list is empty. Add items to get started!") } // Encouraging text
+                ) { Text("Your order list is empty. Add items to get started!") }
                 AddItemButtonInList(
                     onClick = { showItemSelectionDialog = true },
                     modifier = Modifier.height(96.dp)
@@ -526,7 +510,9 @@ fun OrderListScreen(
                     items(orderItems.value, key = { item -> item.id }) { item ->
                         OrderItemRow(
                             item = item,
-                            modifier = Modifier.height(144.dp) // Increased height for more content
+                            onIncreaseQuantity = { updateQuantity(item.id, 1) },
+                            onDecreaseQuantity = { updateQuantity(item.id, -1) },
+                            modifier = Modifier.wrapContentHeight() // Allow card to size itself
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -536,7 +522,7 @@ fun OrderListScreen(
                             onClick = { showItemSelectionDialog = true },
                             modifier = Modifier.height(96.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp)) // Padding at the bottom of the list
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
@@ -553,7 +539,7 @@ fun AddItemButtonInList(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp), // Keep some vertical padding
         shape = RoundedCornerShape(8.dp)
     ) {
         Icon(Icons.Filled.Add, contentDescription = "Add new item", modifier = Modifier.padding(end = 8.dp))
@@ -564,35 +550,90 @@ fun AddItemButtonInList(
 @Composable
 fun OrderItemRow(
     item: OrderItem,
+    onIncreaseQuantity: () -> Unit,
+    onDecreaseQuantity: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
-            .fillMaxWidth(),
+            .fillMaxWidth(), // Card will take full width
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth()
-                .fillMaxHeight(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 16.dp, vertical = 12.dp) // Increased vertical padding for better spacing
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            // Item Name and Price per item (Left Column)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text(text = item.name, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "Qty: ${item.quantity} x $${"%.2f".format(item.price)} / item", // Clarified price
-                    style = MaterialTheme.typography.bodySmall
+                    text = "$${"%.2f".format(item.price)} / item",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 2.dp) // Small space
                 )
             }
-            Text(
-                text = "$${"%.2f".format(item.getTotalPrice())}",
-                style = MaterialTheme.typography.titleLarge // Made total price more prominent
-            )
+
+            // Quantity Controls and Total Price for this item (Right Column)
+            Column(
+                horizontalAlignment = Alignment.End,
+                // verticalArrangement = Arrangement.Center, // Center this column's content
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Row( // Quantity controls
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.padding(bottom = 6.dp) // Space between controls and total
+                ) {
+                    IconButton(
+                        onClick = onDecreaseQuantity,
+                        modifier = Modifier.size(36.dp), // Explicit size for consistency
+                        enabled = item.quantity > 1
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Decrease quantity",
+                            tint = if (item.quantity > 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    }
+
+                    Text(
+                        text = "${item.quantity}",
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center, // Center quantity text
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                            .defaultMinSize(minWidth = 24.dp) // Ensure quantity text has some min width
+                    )
+
+                    IconButton(
+                        onClick = onIncreaseQuantity,
+                        modifier = Modifier.size(36.dp) // Explicit size
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AddCircle,
+                            contentDescription = "Increase quantity",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                // Total Price for this item
+                Text(
+                    text = "$${"%.2f".format(item.getTotalPrice())}",
+                    style = MaterialTheme.typography.titleMedium, // Adjusted style for space, was titleLarge
+                    textAlign = TextAlign.End // Ensure it aligns to the end of its space
+                )
+            }
         }
     }
 }
+
+
+// --- Previews ---
 
 @Preview(showBackground = true)
 @Composable
@@ -631,20 +672,51 @@ fun FullScreenQuantitySelectionDialogPreview() {
 
 @Preview(showBackground = true)
 @Composable
-fun OrderListScreenPreview() {
+fun OrderListScreenWithItemsPreview() {
     NoodleMoneyBuddyTheme {
-        // Simulate some items for a more complete preview
         val navController = rememberNavController()
-        val sampleItems = remember {
-            mutableStateOf(listOf(
-                OrderItem("1", "Noodle A", 2, 5.00),
-                OrderItem("2", "Drink C", 1, 2.50)
-            ))
+        val sampleOrderItems = remember {
+            mutableStateOf(
+                listOf(
+                    OrderItem("1", "Noodle A Special Deluxe with Extra Long Name", 2, 5.00),
+                    OrderItem("2", "Drink C", 1, 2.50),
+                    OrderItem("3", "Side D", 10, 3.00)
+                )
+            )
         }
-        // This preview won't actually update sampleItems via dialogs,
-        // but it shows how the list looks with items.
-        // For actual interaction, run on an emulator/device.
-        OrderListScreen(navController = navController) // Pass the real mutableState for a full test
+        // This preview is static but shows the layout with items.
+        // For dynamic updates, we'd need to mock the updateQuantity or run on device.
+        OrderListScreen(navController = navController) // Preview will use its internal empty state logic
+        // To see items, you'd populate the initial orderItems state in the preview if desired.
+        // For now, it shows the empty state, then you'd manually add via UI in emulator.
+    }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun OrderItemRowPreview() {
+    NoodleMoneyBuddyTheme {
+        Column {
+            OrderItemRow(
+                item = OrderItem("1", "Noodle A", 1, 5.00),
+                onIncreaseQuantity = {},
+                onDecreaseQuantity = {},
+                modifier = Modifier.padding(8.dp)
+            )
+            OrderItemRow(
+                item = OrderItem("2", "Drink C with a very very long name that might wrap", 5, 2.50),
+                onIncreaseQuantity = {},
+                onDecreaseQuantity = {},
+                modifier = Modifier.padding(8.dp)
+            )
+            OrderItemRow(
+                item = OrderItem("3", "Side D", 99, 3.00),
+                onIncreaseQuantity = {},
+                onDecreaseQuantity = {},
+                modifier = Modifier.padding(8.dp)
+            )
+        }
     }
 }
 
