@@ -383,6 +383,11 @@ fun OrderListScreen(
 
     val orderItems = remember { mutableStateOf(listOf<OrderItem>()) }
 
+    // Calculate the total cost
+    val totalCost = remember(orderItems.value) {
+        orderItems.value.sumOf { it.getTotalPrice() }
+    }
+
     // --- Full-Screen Item Selection Dialog ---
     if (showItemSelectionDialog) {
         FullScreenItemSelectionDialog(
@@ -467,27 +472,42 @@ fun OrderListScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
-            Row(
+            // New Column to hold the total cost and the buttons
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.End // Align total cost text to the end
             ) {
-                Button(
-                    onClick = { showCancelOrderConfirmDialog = true },
-                    shape = buttonShape,
-                    modifier = Modifier.weight(1f).height(60.dp)
-                ) { Text("Cancel Order") }
+                // Display Total Cost if there are items
+                if (orderItems.value.isNotEmpty()) {
+                    Text(
+                        text = "Total: $${"%.2f".format(totalCost)}",
+                        style = MaterialTheme.typography.titleLarge, // Or any style you prefer
+                        modifier = Modifier.padding(bottom = 8.dp) // Add some spacing
+                    )
+                }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = { showCancelOrderConfirmDialog = true },
+                        shape = buttonShape,
+                        modifier = Modifier.weight(1f).height(60.dp)
+                    ) { Text("Cancel Order") }
 
-                Button(
-                    onClick = { /* TODO: Handle Confirm Order action */ },
-                    shape = buttonShape,
-                    modifier = Modifier.weight(1f).height(60.dp),
-                    enabled = orderItems.value.isNotEmpty()
-                ) { Text("Confirm Order") }
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Button(
+                        onClick = { /* TODO: Handle Confirm Order action */ },
+                        shape = buttonShape,
+                        modifier = Modifier.weight(1f).height(60.dp),
+                        enabled = orderItems.value.isNotEmpty()
+                    ) { Text("Confirm Order") }
+                }
             }
         }
     ) { innerPadding ->
