@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.css152lgroup10.noodlemoneybuddy"
-        minSdk = 23
+        minSdk = 28
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.car.ui.lib)
+    implementation(libs.androidx.room.runtime.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -58,4 +59,13 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation ("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation ("androidx.compose.material3:material3:1.2.0")
+    implementation("androidx.compose.material3:material3:<latest_version>")
+    implementation("androidx.navigation:navigation-compose:<latest_version>")
+    implementation ("androidx.compose.material:material-icons-extended:")
+    implementation ("androidx.compose.material:material-icons-extended:1.5.4")
+    implementation ("io.insert-koin:koin-android:3.5.3")
+    implementation ("com.google.code.gson:gson:2.10.1")
 }

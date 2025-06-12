@@ -14,9 +14,6 @@ data class SalesData(
 
     fun getFormattedAverageOrderValue(): String = "₱%.2f".format(averageOrderValue)
 
-    /**
-     * Get formatted date for display
-     */
     fun getFormattedDate(): String {
         return try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())

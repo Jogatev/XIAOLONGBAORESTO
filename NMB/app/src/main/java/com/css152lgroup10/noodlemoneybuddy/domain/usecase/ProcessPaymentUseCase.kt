@@ -89,7 +89,7 @@ class ProcessPaymentUseCase @Inject constructor(
                         Result.success(PartialPaymentResult.ContinuePayment(result.remainingAmount))
                     }
                     is PaymentResult.Error -> {
-                        Result.success(PartialPaymentResult.Error(result.message))
+                        Result.success(PartialPaymentResult.Error(result.errorMessage))
                     }
                     is PaymentResult.Cancelled -> {
                         Result.success(PartialPaymentResult.Error("Payment was cancelled"))

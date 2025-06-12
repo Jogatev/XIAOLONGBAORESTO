@@ -8,13 +8,11 @@ sealed class PaymentResult {
         fun hasChange(): Boolean = change > 0.0
     }
 
-
     data class PartialPayment(val remainingAmount: Double) : PaymentResult() {
         fun getFormattedRemainingAmount(): String = "₱%.2f".format(remainingAmount)
     }
 
-
-    data class Error(val message: String) : PaymentResult()
+    data class Error(val errorMessage: String) : PaymentResult()
 
     object Cancelled : PaymentResult()
 
@@ -24,7 +22,7 @@ sealed class PaymentResult {
 
     fun isError(): Boolean = this is Error
 
-    fun getMessage(): String {
+    fun getDisplayMessage(): String {
         return when (this) {
             is Success -> if (hasChange()) {
                 "Payment successful! Change: ${getFormattedChange()}"
@@ -32,7 +30,7 @@ sealed class PaymentResult {
                 "Payment successful!"
             }
             is PartialPayment -> "Partial payment received. Remaining: ${getFormattedRemainingAmount()}"
-            is Error -> "Payment error: $message"
+            is Error -> "Payment error: $errorMessage"
             is Cancelled -> "Payment cancelled"
         }
     }

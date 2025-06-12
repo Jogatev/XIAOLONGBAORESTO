@@ -3,764 +3,90 @@ package com.css152lgroup10.noodlemoneybuddy.presentation.ui
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.* // ktlint-disable no-wildcard-imports
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.* // ktlint-disable no-wildcard-imports
-import androidx.compose.runtime.* // ktlint-disable no-wildcard-imports
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.navigation.NavController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.css152lgroup10.noodlemoneybuddy.presentation.ui.navigation.NavigationGraph
+import com.css152lgroup10.noodlemoneybuddy.presentation.ui.navigation.Screen
 import com.css152lgroup10.noodlemoneybuddy.presentation.ui.theme.NoodleMoneyBuddyTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.BarChart
+import dagger.hilt.android.AndroidEntryPoint
 
-// Data class for OrderItem
-data class OrderItem(
-    val id: String,
-    val name: String,
-    val quantity: Int,
-    val price: Double
-) {
-    fun getTotalPrice(): Double = quantity * price
-}
-
-// Data class for Selectable Menu Items
-data class MenuItem(
-    val id: String,
-    val name: String,
-    val price: Double
-)
-
-// Available menu items
-val availableMenuItems = listOf(
-    MenuItem("noodle_a", "Noodle A", 5.00),
-    MenuItem("noodle_b", "Noodle B", 6.00),
-    MenuItem("drink_c", "Drink C", 2.50),
-    MenuItem("side_d", "Side D", 3.00)
-)
-
-// Define route names as constants
-object AppDestinations {
-    const val MENU_SCREEN = "menu"
-    const val ORDER_LIST_SCREEN = "order_list"
-}
-
-class ClickDebouncer(private val delayMillis: Long = 500L) {
-    private var lastClickTime = 0L
-
-    fun processClick(onClick: () -> Unit) {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastClickTime > delayMillis) {
-            lastClickTime = currentTime
-            onClick()
-        }
-    }
-}
-
-@Composable
-fun rememberClickDebouncer(delayMillis: Long = 500L): ClickDebouncer {
-    return remember { ClickDebouncer(delayMillis) }
-}
-
-
+@AndroidEntryPoint
+@OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             NoodleMoneyBuddyTheme {
                 val navController = rememberNavController()
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    NavHost(
+                val screens = listOf(
+                    Screen.Home,
+                    Screen.CreateOrder,
+                    Screen.Statistics
+                )
+
+                // Get current destination to sync with bottom bar
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentDestination = navBackStackEntry?.destination?.route
+
+                Scaffold(
+                    bottomBar = {
+                        NavigationBar {
+                            screens.forEach { screen ->
+                                NavigationBarItem(
+                                    selected = currentDestination == screen.route,
+                                    onClick = {
+                                        navController.navigate(screen.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                    icon = {
+                                        Icon(
+                                            imageVector = when (screen) {
+                                                Screen.Home -> Icons.Default.Home
+                                                Screen.CreateOrder -> Icons.Default.ShoppingCart
+                                                Screen.Statistics -> Icons.Default.BarChart
+                                                else -> Icons.Default.Home
+                                            },
+                                            contentDescription = when (screen) {
+                                                Screen.Home -> "Home"
+                                                Screen.CreateOrder -> "Create Order"
+                                                Screen.Statistics -> "Statistics"
+                                                else -> "Navigation"
+                                            }
+                                        )
+                                    },
+                                    label = {
+                                        Text(when (screen) {
+                                            Screen.Home -> "Home"
+                                            Screen.CreateOrder -> "Create Order"
+                                            Screen.Statistics -> "Statistics"
+                                            else -> "Tab"
+                                        })
+                                    }
+                                )
+                            }
+                        }
+                    }
+                ) { innerPadding ->
+                    NavigationGraph(
                         navController = navController,
-                        startDestination = AppDestinations.MENU_SCREEN,
-                        modifier = Modifier.padding(innerPadding),
-                        enterTransition = {
-                            slideInHorizontally(
-                                initialOffsetX = { fullWidth -> fullWidth },
-                                animationSpec = tween(durationMillis = 150)
-                            ) + fadeIn(animationSpec = tween(durationMillis = 150))
-                        },
-                        exitTransition = {
-                            slideOutHorizontally(
-                                targetOffsetX = { fullWidth -> -fullWidth },
-                                animationSpec = tween(durationMillis = 150)
-                            ) + fadeOut(animationSpec = tween(durationMillis = 150))
-                        },
-                        popEnterTransition = {
-                            slideInHorizontally(
-                                initialOffsetX = { fullWidth -> -fullWidth },
-                                animationSpec = tween(durationMillis = 150)
-                            ) + fadeIn(animationSpec = tween(durationMillis = 150))
-                        },
-                        popExitTransition = {
-                            slideOutHorizontally(
-                                targetOffsetX = { fullWidth -> fullWidth },
-                                animationSpec = tween(durationMillis = 150)
-                            ) + fadeOut(animationSpec = tween(durationMillis = 150))
-                        }
-                    ) {
-                        composable(AppDestinations.MENU_SCREEN) {
-                            MenuScreen(navController = navController)
-                        }
-                        composable(AppDestinations.ORDER_LIST_SCREEN) {
-                            OrderListScreen(navController = navController)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MenuScreen(
-    navController: NavController,
-    modifier: Modifier = Modifier
-) {
-    val lessRoundedButtonShape = RoundedCornerShape(8.dp)
-    val debouncer = rememberClickDebouncer()
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Button(
-            onClick = {
-                debouncer.processClick {
-                    navController.navigate(AppDestinations.ORDER_LIST_SCREEN) {
-                        launchSingleTop = true
-                    }
-                }
-            },
-            shape = lessRoundedButtonShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(vertical = 8.dp)
-        ) { Text("Create Order") }
-        Button(
-            onClick = { /* TODO: Handle Modify Order click */ },
-            shape = lessRoundedButtonShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(vertical = 8.dp)
-        ) { Text("Modify Order") }
-        Button(
-            onClick = { /* TODO: Handle View Statistics click */ },
-            shape = lessRoundedButtonShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(0.5f)
-                .padding(vertical = 8.dp)
-        ) { Text("View Statistics") }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FullScreenItemSelectionDialog(
-    onDismissRequest: () -> Unit,
-    onItemSelected: (MenuItem) -> Unit
-) {
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnClickOutside = true,
-            dismissOnBackPress = true
-        )
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                TopAppBar(
-                    title = { Text("Select an Item") }
-                )
-            },
-            bottomBar = {
-                Button(
-                    onClick = onDismissRequest,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(96.dp)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Text("Cancel", style = MaterialTheme.typography.titleMedium)
-                }
-            }
-        ) { innerPadding ->
-            LazyColumn(
-                modifier = Modifier
-                    .padding(
-                        top = innerPadding.calculateTopPadding(),
-                        start = 0.dp,
-                        end = 0.dp,
-                        bottom = innerPadding.calculateBottomPadding()
-                    )
-                    .fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
-            ) {
-                items(availableMenuItems) { menuItem ->
-                    val itemHeight = 112.dp
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(itemHeight)
-                            .padding(vertical = 4.dp)
-                            .clickable {
-                                onItemSelected(menuItem)
-                            },
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth()
-                                .fillMaxHeight(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(menuItem.name, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "$${"%.2f".format(menuItem.price)}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FullScreenQuantitySelectionDialog(
-    menuItem: MenuItem,
-    onDismissRequest: () -> Unit,
-    onConfirm: (quantity: Int) -> Unit
-) {
-    var currentQuantity by remember { mutableStateOf(1) }
-
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnClickOutside = false,
-            dismissOnBackPress = true
-        )
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                TopAppBar(
-                    title = { Text("Set Quantity for ${menuItem.name}") }
-                )
-            },
-            bottomBar = {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        onClick = onDismissRequest,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(96.dp)
-                    ) {
-                        Text("Cancel", style = MaterialTheme.typography.titleMedium)
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Button(
-                        onClick = { onConfirm(currentQuantity) },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(96.dp)
-                    ) {
-                        Text("Confirm", style = MaterialTheme.typography.titleMedium)
-                    }
-                }
-            }
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    IconButton(
-                        onClick = {
-                            if (currentQuantity > 1) currentQuantity--
-                        },
-                        modifier = Modifier.weight(1f).aspectRatio(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = "Decrease quantity",
-                            modifier = Modifier.fillMaxSize(0.7f),
-                            tint = if (currentQuantity > 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-
-                    Text(
-                        text = "$currentQuantity",
-                        style = MaterialTheme.typography.displayLarge,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1.5f)
-                    )
-
-                    IconButton(
-                        onClick = { currentQuantity++ },
-                        modifier = Modifier.weight(1f).aspectRatio(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.AddCircle,
-                            contentDescription = "Increase quantity",
-                            modifier = Modifier.fillMaxSize(0.7f),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OrderListScreen(
-    navController: NavController,
-    modifier: Modifier = Modifier
-) {
-    val buttonShape = RoundedCornerShape(8.dp)
-    var showCancelOrderConfirmDialog by remember { mutableStateOf(false) }
-    var showItemSelectionDialog by remember { mutableStateOf(false) }
-    var selectedMenuItemForQuantity by remember { mutableStateOf<MenuItem?>(null) }
-    var showFullScreenQuantityDialog by remember { mutableStateOf(false) }
-
-    val orderItems = remember { mutableStateOf(listOf<OrderItem>()) }
-
-    // --- Full-Screen Item Selection Dialog ---
-    if (showItemSelectionDialog) {
-        FullScreenItemSelectionDialog(
-            onDismissRequest = { showItemSelectionDialog = false },
-            onItemSelected = { selectedMenuItem ->
-                selectedMenuItemForQuantity = selectedMenuItem
-                showFullScreenQuantityDialog = true
-                showItemSelectionDialog = false
-            }
-        )
-    }
-
-    // --- Full-Screen Quantity Selection Dialog ---
-    selectedMenuItemForQuantity?.let { menuItem ->
-        if (showFullScreenQuantityDialog) {
-            FullScreenQuantitySelectionDialog(
-                menuItem = menuItem,
-                onDismissRequest = {
-                    showFullScreenQuantityDialog = false
-                    selectedMenuItemForQuantity = null
-                },
-                onConfirm = { quantity ->
-                    val newItemId = (orderItems.value.size + 1 + System.currentTimeMillis()).toString()
-                    orderItems.value = orderItems.value + OrderItem(
-                        id = newItemId,
-                        name = menuItem.name,
-                        quantity = quantity,
-                        price = menuItem.price
-                    )
-                    showFullScreenQuantityDialog = false
-                    selectedMenuItemForQuantity = null
-                }
-            )
-        }
-    }
-
-    // --- Cancel Order Confirmation Dialog ---
-    if (showCancelOrderConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showCancelOrderConfirmDialog = false
-            },
-            title = { Text(text = "Confirm Order Cancellation") },
-            text = { Text("Are you sure you want to cancel this order and go back?") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showCancelOrderConfirmDialog = false
-                        if (navController.currentBackStackEntry?.destination?.route == AppDestinations.ORDER_LIST_SCREEN) {
-                            navController.popBackStack()
-                        }
-                    },
-                    shape = buttonShape,
-                    modifier = Modifier.padding(horizontal = 8.dp).defaultMinSize(minHeight = 48.dp)
-                ) { Text("Yes, Cancel") }
-            },
-            dismissButton = {
-                Button(
-                    onClick = { showCancelOrderConfirmDialog = false },
-                    shape = buttonShape,
-                    modifier = Modifier.padding(horizontal = 8.dp).defaultMinSize(minHeight = 48.dp)
-                ) { Text("No") }
-            }
-        )
-    }
-
-    fun updateQuantity(itemId: String, change: Int) {
-        orderItems.value = orderItems.value.map {
-            if (it.id == itemId) {
-                val newQuantity = it.quantity + change
-                it.copy(quantity = if (newQuantity > 0) newQuantity else 1) // Ensure quantity doesn't go below 1
-            } else {
-                it
-            }
-        }
-    }
-
-    fun removeItem(itemId: String) {
-        orderItems.value = orderItems.value.filterNot { it.id == itemId }
-    }
-
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = { showCancelOrderConfirmDialog = true },
-                    shape = buttonShape,
-                    modifier = Modifier.weight(1f).height(60.dp)
-                ) { Text("Cancel Order") }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Button(
-                    onClick = { /* TODO: Handle Confirm Order action */ },
-                    shape = buttonShape,
-                    modifier = Modifier.weight(1f).height(60.dp),
-                    enabled = orderItems.value.isNotEmpty()
-                ) { Text("Confirm Order") }
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-        ) {
-            if (orderItems.value.isEmpty()) {
-                Box(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) { Text("Your order list is empty. Add items to get started!") }
-                AddItemButtonInList(
-                    onClick = { showItemSelectionDialog = true },
-                    modifier = Modifier.height(96.dp)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
-                ) {
-                    items(
-                        items = orderItems.value,
-                        key = { item -> item.id }
-                    ) { item ->
-                        OrderItemRow(
-                            item = item,
-                            onIncreaseQuantity = { updateQuantity(item.id, 1) },
-                            onDecreaseQuantity = { updateQuantity(item.id, -1) },
-                            onDismissed = { removeItem(item.id) },
-                            modifier = Modifier.wrapContentHeight() // Important for SwipeToDismissBox
-                        )
-                        Spacer(modifier = Modifier.height(8.dp)) // Spacer between items
-                    }
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AddItemButtonInList(
-                            onClick = { showItemSelectionDialog = true },
-                            modifier = Modifier.height(96.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun AddItemButtonInList(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Icon(Icons.Filled.Add, contentDescription = "Add new item", modifier = Modifier.padding(end = 8.dp))
-        Text("Add Item")
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OrderItemRow(
-    item: OrderItem,
-    onIncreaseQuantity: () -> Unit,
-    onDecreaseQuantity: () -> Unit,
-    onDismissed: () -> Unit,
-    modifier: Modifier = Modifier // This modifier is now for the SwipeToDismissBox
-) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { dismissValue ->
-            if (dismissValue == SwipeToDismissBoxValue.EndToStart || dismissValue == SwipeToDismissBoxValue.StartToEnd) {
-                onDismissed()
-                true
-            } else {
-                false
-            }
-        },
-        positionalThreshold = { it * 0.25f }
-    )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        modifier = modifier, // Apply the main modifier here
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val color = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.errorContainer
-                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                else -> Color.Transparent
-            }
-            val alignment = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
-                else -> Alignment.Center
-            }
-            val icon = Icons.Filled.Delete
-
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(color, shape = RoundedCornerShape(8.dp)) // Match card's corners
-                    .padding(horizontal = 20.dp),
-                contentAlignment = alignment
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = "Delete Icon",
-                    tint = MaterialTheme.colorScheme.onErrorContainer
-                )
-            }
-        }
-    ) {
-        // Content of the swipeable item (the Card)
-        Card(
-            modifier = Modifier.fillMaxWidth(), // Card itself fills width within SwipeToDismissBox
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(text = item.name, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = "$${"%.2f".format(item.price)} / item",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier.padding(start = 8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    ) {
-                        IconButton(
-                            onClick = onDecreaseQuantity,
-                            modifier = Modifier.size(36.dp),
-                            enabled = item.quantity > 1
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Delete,
-                                contentDescription = "Decrease quantity",
-                                tint = if (item.quantity > 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            )
-                        }
-                        Text(
-                            text = "${item.quantity}",
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .padding(horizontal = 8.dp)
-                                .defaultMinSize(minWidth = 24.dp)
-                        )
-                        IconButton(
-                            onClick = onIncreaseQuantity,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.AddCircle,
-                                contentDescription = "Increase quantity",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    Text(
-                        text = "$${"%.2f".format(item.getTotalPrice())}",
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.End
+                        modifier = Modifier.padding(innerPadding)
                     )
                 }
             }
         }
-    }
-}
-
-
-// --- Previews ---
-
-@Preview(showBackground = true)
-@Composable
-fun MenuScreenPreview() {
-    NoodleMoneyBuddyTheme {
-        MenuScreen(navController = rememberNavController())
-    }
-}
-
-@Preview(showBackground = true, device = "spec:width=360dp,height=640dp,dpi=480")
-@Composable
-fun FullScreenItemSelectionDialogPreview() {
-    NoodleMoneyBuddyTheme {
-        Box(Modifier.fillMaxSize()) {
-            FullScreenItemSelectionDialog(
-                onDismissRequest = {},
-                onItemSelected = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, device = "spec:width=360dp,height=640dp,dpi=480")
-@Composable
-fun FullScreenQuantitySelectionDialogPreview() {
-    NoodleMoneyBuddyTheme {
-        Box(Modifier.fillMaxSize()) {
-            FullScreenQuantitySelectionDialog(
-                menuItem = availableMenuItems.first(),
-                onDismissRequest = {},
-                onConfirm = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun OrderListScreenWithItemsPreview() {
-    NoodleMoneyBuddyTheme {
-        // This preview will show the empty state.
-        // To see items with swipe, run on an emulator/device and add items.
-        OrderListScreen(navController = rememberNavController())
-    }
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun OrderItemRowPreview() {
-    NoodleMoneyBuddyTheme {
-        Column(Modifier.padding(8.dp).background(Color.LightGray)) { // Added background to preview swipes
-            // To effectively preview SwipeToDismissBox, you often need to interact with it.
-            // These previews will show the static card.
-            OrderItemRow(
-                item = OrderItem("1", "Noodle A (Swipe Me!)", 1, 5.00),
-                onIncreaseQuantity = {},
-                onDecreaseQuantity = {},
-                onDismissed = {}, // In a real app, this would remove the item
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-            OrderItemRow(
-                item = OrderItem("2", "Drink C (Swipe Me!)", 5, 2.50),
-                onIncreaseQuantity = {},
-                onDecreaseQuantity = {},
-                onDismissed = {},
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun OrderListScreenEmptyPreview() {
-    NoodleMoneyBuddyTheme {
-        OrderListScreen(
-            navController = rememberNavController()
-        )
     }
 }
