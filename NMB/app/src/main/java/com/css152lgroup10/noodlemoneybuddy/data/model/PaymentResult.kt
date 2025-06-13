@@ -4,24 +4,20 @@ sealed class PaymentResult {
 
     data class Success(val change: Double) : PaymentResult() {
         fun getFormattedChange(): String = "₱%.2f".format(change)
-
         fun hasChange(): Boolean = change > 0.0
     }
-
 
     data class PartialPayment(val remainingAmount: Double) : PaymentResult() {
         fun getFormattedRemainingAmount(): String = "₱%.2f".format(remainingAmount)
     }
 
-
-    data class Error(val message: String) : PaymentResult()
+    // Rename 'message' to 'errorMessage'
+    data class Error(val errorMessage: String) : PaymentResult()
 
     object Cancelled : PaymentResult()
 
     fun isSuccess(): Boolean = this is Success
-
     fun needsMorePayment(): Boolean = this is PartialPayment
-
     fun isError(): Boolean = this is Error
 
     fun getMessage(): String {
@@ -32,7 +28,8 @@ sealed class PaymentResult {
                 "Payment successful!"
             }
             is PartialPayment -> "Partial payment received. Remaining: ${getFormattedRemainingAmount()}"
-            is Error -> "Payment error: $message"
+            // Access the renamed property
+            is Error -> "Payment error: $errorMessage"
             is Cancelled -> "Payment cancelled"
         }
     }
