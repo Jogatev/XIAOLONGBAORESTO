@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -89,6 +90,7 @@ object AppDestinations {
     const val ORDER_LIST_SCREEN = "order_list"
     const val ORDER_RECORDS_SCREEN = "order_records"
     const val ORDER_DETAIL_SCREEN = "order_detail" // e.g., order_detail/{orderId}
+    const val STATISTICS_SCREEN = "statistics"
 }
 
 class ClickDebouncer(private val delayMillis: Long = 500L) {
@@ -207,6 +209,12 @@ fun AppNavigation(
                 }
             }
         }
+        composable(AppDestinations.STATISTICS_SCREEN) {
+            StatisticsScreen(
+                navController = navController,
+                orderRecords = orderRecords.value
+            )
+        }
     }
 }
 
@@ -255,7 +263,11 @@ fun MenuScreen(
         ) { Text("Modify Order") } // This now navigates to the list of order records
 
         Button(
-            onClick = { /* TODO: Handle View Statistics click */ },
+            onClick = {
+                debouncer.processClick {
+                    navController.navigate(AppDestinations.STATISTICS_SCREEN)
+                }
+            },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
@@ -783,6 +795,133 @@ fun PaymentSuccessDialog(
             TextButton(onClick = onDismiss) { Text("OK") }
         }
     )
+}
+
+// --- Statistics Screen ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StatisticsScreen(
+    navController: NavController,
+    orderRecords: List<OrderRecord>,
+    modifier: Modifier = Modifier
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Sales Statistics") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back to Menu")
+                    }
+                }
+            )
+        },
+        modifier = modifier.fillMaxSize()
+    ) { innerPadding ->
+        if (orderRecords.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No sales data available.", style = MaterialTheme.typography.bodyLarge)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                // Calculate statistics
+                val totalSales = orderRecords.sumOf { it.totalAmount  }
+                val totalOrders = orderRecords.size
+                val averageOrderValue = if (totalOrders > 0) totalSales / totalOrders else 0.0
+
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                "Sales Overview",
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Total Sales:")
+                                Text("₱${"%.2f".format(totalSales)}", fontWeight = FontWeight.Bold)
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Total Orders:")
+                                Text("$totalOrders", fontWeight = FontWeight.Bold)
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Average Order Value:")
+                                Text("₱${"%.2f".format(averageOrderValue)}", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                // Popular items analysis
+                item {
+                    val itemSales = mutableMapOf<String, Int>()
+                    orderRecords.forEach { record ->
+                        record.items.forEach { item ->
+                            itemSales[item.name] = itemSales.getOrDefault(item.name, 0) + item.quantity
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                "Popular Items",
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+
+                            itemSales.toList()
+                                .sortedByDescending { it.second }
+                                .take(5)
+                                .forEach { (itemName, quantity) ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(itemName)
+                                        Text("${quantity} sold", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // --- Screens for Order Records ---
