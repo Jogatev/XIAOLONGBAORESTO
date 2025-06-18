@@ -999,7 +999,7 @@ fun StatisticsScreen(
                 },
                 actions = {
                     IconButton(onClick = { showExportMenu = true }) {
-                        Icon(Icons.Filled.Download, contentDescription = "Export Data")
+                        Icon(Icons.Filled.Share, contentDescription = "Export Data")
                     }
                     DropdownMenu(
                         expanded = showExportMenu,
@@ -1017,7 +1017,7 @@ fun StatisticsScreen(
                                 ).show()
                             },
                             leadingIcon = {
-                                Icon(Icons.Filled.FileOpen, contentDescription = null)
+                                Icon(Icons.Filled.Face, contentDescription = null)  // Changed to Description
                             }
                         )
                         DropdownMenuItem(
@@ -1032,7 +1032,7 @@ fun StatisticsScreen(
                                 ).show()
                             },
                             leadingIcon = {
-                                Icon(Icons.Filled.FileOpen, contentDescription = null)
+                                Icon(Icons.Filled.Face, contentDescription = null)  // Changed to Description
                             }
                         )
                     }
@@ -1177,4 +1177,248 @@ fun StatisticRow(label: String, value: String) {
         modifier = Modifier.padding(vertical = 2.dp),
         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
     )
+}
+
+// Add these composable functions to your MainActivity.kt file
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OrderRecordsScreen(
+    navController: NavController,
+    orderRecords: List<OrderRecord>,
+    onOrderClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Order Records") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        modifier = modifier.fillMaxSize()
+    ) { innerPadding ->
+        if (orderRecords.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "No order records found.\nStart taking orders to see them here!",
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                items(orderRecords, key = { it.id }) { record ->
+                    OrderRecordCard(
+                        orderRecord = record,
+                        onClick = { onOrderClick(record.id) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OrderRecordCard(
+    orderRecord: OrderRecord,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Order #${orderRecord.id.take(8)}...",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+                            .format(orderRecord.timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    "₱${"%.2f".format(orderRecord.totalAmount)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                "${orderRecord.items.size} item(s)",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // Show first few items
+            val itemsToShow = orderRecord.items.take(2)
+            itemsToShow.forEach { item ->
+                Text(
+                    "• ${item.name} (${item.quantity}x)",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
+            if (orderRecord.items.size > 2) {
+                Text(
+                    "• ... and ${orderRecord.items.size - 2} more items",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OrderDetailScreen(
+    navController: NavController,
+    orderRecord: OrderRecord,
+    modifier: Modifier = Modifier
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Order Details") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        modifier = modifier.fillMaxSize()
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            // Order Summary Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        "Order Summary",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Order ID:")
+                        Text(orderRecord.id.take(8) + "...")
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Date:")
+                        Text(
+                            SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+                                .format(orderRecord.timestamp)
+                        )
+                    }
+
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Total Amount:", fontWeight = FontWeight.Bold)
+                        Text("₱${"%.2f".format(orderRecord.totalAmount)}", fontWeight = FontWeight.Bold)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Amount Tendered:")
+                        Text("₱${"%.2f".format(orderRecord.amountTendered)}")
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Change Given:")
+                        Text("₱${"%.2f".format(orderRecord.changeGiven)}")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Order Items Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        "Order Items",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    orderRecord.items.forEach { item ->
+                        OrderItemRow(
+                            orderItem = item,
+                            showDeleteButton = false,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
