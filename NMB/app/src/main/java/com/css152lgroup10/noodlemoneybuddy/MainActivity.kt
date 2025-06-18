@@ -318,14 +318,7 @@ fun OrderListScreen(
             )
         },
         floatingActionButton = {
-            if (!showAmountTenderedDialog) { // Only show FAB if not in payment process
-                FloatingActionButton(
-                    onClick = { showItemSelectionDialog = true },
-                    shape = CircleShape // More standard FAB shape
-                ) {
-                    Icon(Icons.Filled.Add, "Add item to order")
-                }
-            }
+
         },
         bottomBar = {
             if (orderItems.value.isNotEmpty() && !showAmountTenderedDialog) {
@@ -364,11 +357,28 @@ fun OrderListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "No items in order.\nTap the '+' button to add items.",
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "No items in order.\nTap the '+' button to add items.",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 24.dp)
+                        )
+
+                        Button(
+                            onClick = { showItemSelectionDialog = true },
+                            shape = RoundedCornerShape(16.dp), // Square-ish shape
+                            modifier = Modifier
+                                .size(120.dp) // Large square button
+                        ) {
+                            Icon(
+                                Icons.Filled.Add,
+                                "Add item to order",
+                                modifier = Modifier.size(48.dp) // Large icon
+                            )
+                        }
+                    }
                 }
             } else {
                 LazyColumn(
@@ -562,7 +572,7 @@ fun FullScreenItemSelectionDialog(
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(96.dp) // Increased height
+                        .height(196.dp) // Increased height
                         .padding(horizontal = 16.dp, vertical = 12.dp) // Standard padding
                 ) {
                     Text("Cancel", style = MaterialTheme.typography.titleMedium)
