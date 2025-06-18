@@ -1,6 +1,11 @@
 package com.css152lgroup10.noodlemoneybuddy
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -9,24 +14,23 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.* // ktlint-disable no-wildcard-imports
+import androidx.compose.foundation.layout.* // includes all layout imports
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.* // includes shape utilities
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.* // ktlint-disable no-wildcard-imports
-import androidx.compose.runtime.* // ktlint-disable no-wildcard-imports
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.* // ArrowBack, Download, FileOpen, Add, AddCircle, Delete
+import androidx.compose.material3.* // covers all material3 components
+import androidx.compose.runtime.* // for remember, mutableStateOf, etc.
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -34,16 +38,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.css152lgroup10.noodlemoneybuddy.ui.theme.NoodleMoneyBuddyTheme
+import java.io.File
+import java.io.FileWriter
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
+import java.util.* // includes Calendar, Date, Locale, UUID
+
 
 // Data class for OrderItem
 data class OrderItem(
@@ -60,6 +66,20 @@ data class MenuItem(
     val id: String,
     val name: String,
     val price: Double
+)
+
+data class OrderStatistics(
+    val totalOrders: Int,
+    val totalRevenue: Double,
+    val averageOrderValue: Double,
+    val mostPopularItem: String,
+    val mostPopularItemCount: Int,
+    val todayOrders: Int,
+    val todayRevenue: Double,
+    val thisWeekOrders: Int,
+    val thisWeekRevenue: Double,
+    val thisMonthOrders: Int,
+    val thisMonthRevenue: Double
 )
 
 // Data class for a completed Order Record
@@ -89,8 +109,8 @@ object AppDestinations {
     const val MENU_SCREEN = "menu"
     const val ORDER_LIST_SCREEN = "order_list"
     const val ORDER_RECORDS_SCREEN = "order_records"
-    const val ORDER_DETAIL_SCREEN = "order_detail" // e.g., order_detail/{orderId}
-    const val STATISTICS_SCREEN = "statistics"
+    const val ORDER_DETAIL_SCREEN = "order_detail"
+    const val STATISTICS_SCREEN = "statistics" // Add this line
 }
 
 class ClickDebouncer(private val delayMillis: Long = 500L) {
@@ -109,6 +129,158 @@ class ClickDebouncer(private val delayMillis: Long = 500L) {
 fun rememberClickDebouncer(delayMillis: Long = 500L): ClickDebouncer {
     return remember { ClickDebouncer(delayMillis) }
 }
+
+// Add this function to calculate statistics
+fun calculateStatistics(orderRecords: List<OrderRecord>): OrderStatistics {
+    if (orderRecords.isEmpty()) {
+        return OrderStatistics(0, 0.0, 0.0, "None", 0, 0, 0.0, 0, 0.0, 0, 0.0)
+    }
+
+    val totalOrders = orderRecords.size
+    val totalRevenue = orderRecords.sumOf { it.totalAmount }
+    val averageOrderValue = totalRevenue / totalOrders
+
+    // Find most popular item
+    val itemCounts = mutableMapOf<String, Int>()
+    orderRecords.forEach { order ->
+        order.items.forEach { item ->
+            itemCounts[item.name] = itemCounts.getOrDefault(item.name, 0) + item.quantity
+        }
+    }
+    val mostPopularItem = itemCounts.maxByOrNull { it.value }
+    val mostPopularItemName = mostPopularItem?.key ?: "None"
+    val mostPopularItemCount = mostPopularItem?.value ?: 0
+
+    // Calculate time-based statistics
+    val calendar = Calendar.getInstance()
+    val today = calendar.time
+    calendar.set(Calendar.HOUR_OF_DAY, 0)
+    calendar.set(Calendar.MINUTE, 0)
+    calendar.set(Calendar.SECOND, 0)
+    calendar.set(Calendar.MILLISECOND, 0)
+    val startOfToday = calendar.time
+
+    calendar.add(Calendar.DAY_OF_YEAR, -7)
+    val startOfWeek = calendar.time
+
+    calendar.time = today
+    calendar.set(Calendar.DAY_OF_MONTH, 1)
+    calendar.set(Calendar.HOUR_OF_DAY, 0)
+    calendar.set(Calendar.MINUTE, 0)
+    calendar.set(Calendar.SECOND, 0)
+    calendar.set(Calendar.MILLISECOND, 0)
+    val startOfMonth = calendar.time
+
+    val todayOrders = orderRecords.filter { it.timestamp >= startOfToday }
+    val thisWeekOrders = orderRecords.filter { it.timestamp >= startOfWeek }
+    val thisMonthOrders = orderRecords.filter { it.timestamp >= startOfMonth }
+
+    return OrderStatistics(
+        totalOrders = totalOrders,
+        totalRevenue = totalRevenue,
+        averageOrderValue = averageOrderValue,
+        mostPopularItem = mostPopularItemName,
+        mostPopularItemCount = mostPopularItemCount,
+        todayOrders = todayOrders.size,
+        todayRevenue = todayOrders.sumOf { it.totalAmount },
+        thisWeekOrders = thisWeekOrders.size,
+        thisWeekRevenue = thisWeekOrders.sumOf { it.totalAmount },
+        thisMonthOrders = thisMonthOrders.size,
+        thisMonthRevenue = thisMonthOrders.sumOf { it.totalAmount }
+    )
+}
+
+
+// Export functions
+fun exportToCSV(context: Context, orderRecords: List<OrderRecord>): Boolean {
+    return try {
+        val fileName = "noodle_buddy_orders_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.csv"
+        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName)
+
+        FileWriter(file).use { writer ->
+            // Write header
+            writer.append("Order ID,Date,Item Name,Quantity,Unit Price,Total Price,Order Total,Amount Tendered,Change Given\n")
+
+            // Write data
+            orderRecords.forEach { order ->
+                val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(order.timestamp)
+                order.items.forEach { item ->
+                    writer.append("${order.id},")
+                    writer.append("$dateString,")
+                    writer.append("\"${item.name}\",")
+                    writer.append("${item.quantity},")
+                    writer.append("${item.price},")
+                    writer.append("${item.getTotalPrice()},")
+                    writer.append("${order.totalAmount},")
+                    writer.append("${order.amountTendered},")
+                    writer.append("${order.changeGiven}\n")
+                }
+            }
+        }
+
+        // Share the file
+        shareFile(context, file, "text/csv")
+        true
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
+    }
+}
+
+fun exportToExcel(context: Context, orderRecords: List<OrderRecord>): Boolean {
+    return try {
+        val fileName = "noodle_buddy_orders_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.csv"
+        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName)
+
+        FileWriter(file).use { writer ->
+            // Write header with tab separation for Excel compatibility
+            writer.append("Order ID\tDate\tItem Name\tQuantity\tUnit Price\tTotal Price\tOrder Total\tAmount Tendered\tChange Given\n")
+
+            // Write data with tab separation
+            orderRecords.forEach { order ->
+                val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(order.timestamp)
+                order.items.forEach { item ->
+                    writer.append("${order.id}\t")
+                    writer.append("$dateString\t")
+                    writer.append("${item.name}\t")
+                    writer.append("${item.quantity}\t")
+                    writer.append("${item.price}\t")
+                    writer.append("${item.getTotalPrice()}\t")
+                    writer.append("${order.totalAmount}\t")
+                    writer.append("${order.amountTendered}\t")
+                    writer.append("${order.changeGiven}\n")
+                }
+            }
+        }
+
+        // Share the file as Excel-compatible
+        shareFile(context, file, "application/vnd.ms-excel")
+        true
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
+    }
+}
+
+private fun shareFile(context: Context, file: File, mimeType: String) {
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = mimeType
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    context.startActivity(Intent.createChooser(intent, "Share Export File"))
+}
+
+
+
+
 
 
 class MainActivity : ComponentActivity() {
@@ -183,8 +355,8 @@ fun AppNavigation(
                 navController = navController,
                 orderItems = currentOrderItems,
                 onSaveOrder = { record ->
-                    orderRecords.value = orderRecords.value + record // Add new record
-                    currentOrderItems.value = emptyList() // Clear current order for next one
+                    orderRecords.value = orderRecords.value + record
+                    currentOrderItems.value = emptyList()
                 }
             )
         }
@@ -203,12 +375,12 @@ fun AppNavigation(
             if (record != null) {
                 OrderDetailScreen(navController = navController, orderRecord = record)
             } else {
-                // Fallback if orderId is not found
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Order not found. Please go back.", textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
                 }
             }
         }
+        // Add this new composable for statistics
         composable(AppDestinations.STATISTICS_SCREEN) {
             StatisticsScreen(
                 navController = navController,
@@ -217,36 +389,34 @@ fun AppNavigation(
         }
     }
 }
-
-
 @Composable
 fun MenuScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val lessRoundedButtonShape = RoundedCornerShape(8.dp) // Consistent button shape
+    val lessRoundedButtonShape = RoundedCornerShape(8.dp)
     val debouncer = rememberClickDebouncer()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp), // Padding around the column
-        verticalArrangement = Arrangement.Center, // Center buttons vertically
-        horizontalAlignment = Alignment.CenterHorizontally // Center buttons horizontally
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Button(
             onClick = {
                 debouncer.processClick {
                     navController.navigate(AppDestinations.ORDER_LIST_SCREEN) {
-                        launchSingleTop = true // Avoid multiple copies of order screen
+                        launchSingleTop = true
                     }
                 }
             },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // Makes button take up proportional space
-                .padding(vertical = 8.dp) // Spacing between buttons
+                .weight(1f)
+                .padding(vertical = 8.dp)
         ) { Text("Create Order") }
 
         Button(
@@ -258,21 +428,21 @@ fun MenuScreen(
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // Makes button take up proportional space
-                .padding(vertical = 8.dp) // Spacing between buttons
-        ) { Text("Modify Order") } // This now navigates to the list of order records
+                .weight(1f)
+                .padding(vertical = 8.dp)
+        ) { Text("Modify Order") }
 
         Button(
             onClick = {
                 debouncer.processClick {
-                    navController.navigate(AppDestinations.STATISTICS_SCREEN)
+                    navController.navigate(AppDestinations.STATISTICS_SCREEN) // Update this line
                 }
             },
             shape = lessRoundedButtonShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.5f) // Makes button take up proportional space
-                .padding(vertical = 8.dp) // Spacing between buttons
+                .weight(0.5f)
+                .padding(vertical = 8.dp)
         ) { Text("View Statistics") }
     }
 }
@@ -807,7 +977,6 @@ fun PaymentSuccessDialog(
     )
 }
 
-// --- Statistics Screen ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
@@ -815,212 +984,57 @@ fun StatisticsScreen(
     orderRecords: List<OrderRecord>,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val statistics = remember(orderRecords) { calculateStatistics(orderRecords) }
+    var showExportMenu by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Sales Statistics") },
+                title = { Text("Statistics") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back to Menu")
                     }
-                }
-            )
-        },
-        modifier = modifier.fillMaxSize()
-    ) { innerPadding ->
-        if (orderRecords.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No sales data available.", style = MaterialTheme.typography.bodyLarge)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                // Calculate statistics
-                val totalSales = orderRecords.sumOf { it.totalAmount  }
-                val totalOrders = orderRecords.size
-                val averageOrderValue = if (totalOrders > 0) totalSales / totalOrders else 0.0
-
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
+                },
+                actions = {
+                    IconButton(onClick = { showExportMenu = true }) {
+                        Icon(Icons.Filled.Download, contentDescription = "Export Data")
+                    }
+                    DropdownMenu(
+                        expanded = showExportMenu,
+                        onDismissRequest = { showExportMenu = false }
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                "Sales Overview",
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.padding(bottom = 16.dp)
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Total Sales:")
-                                Text("₱${"%.2f".format(totalSales)}", fontWeight = FontWeight.Bold)
+                        DropdownMenuItem(
+                            text = { Text("Export to CSV") },
+                            onClick = {
+                                showExportMenu = false
+                                val success = exportToCSV(context, orderRecords)
+                                Toast.makeText(
+                                    context,
+                                    if (success) "CSV exported successfully!" else "Export failed",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Filled.FileOpen, contentDescription = null)
                             }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Total Orders:")
-                                Text("$totalOrders", fontWeight = FontWeight.Bold)
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Export to Excel") },
+                            onClick = {
+                                showExportMenu = false
+                                val success = exportToExcel(context, orderRecords)
+                                Toast.makeText(
+                                    context,
+                                    if (success) "Excel file exported successfully!" else "Export failed",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Filled.FileOpen, contentDescription = null)
                             }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Average Order Value:")
-                                Text("₱${"%.2f".format(averageOrderValue)}", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
-                // Popular items analysis
-                item {
-                    val itemSales = mutableMapOf<String, Int>()
-                    orderRecords.forEach { record ->
-                        record.items.forEach { item ->
-                            itemSales[item.name] = itemSales.getOrDefault(item.name, 0) + item.quantity
-                        }
-                    }
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                "Popular Items",
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.padding(bottom = 16.dp)
-                            )
-
-                            itemSales.toList()
-                                .sortedByDescending { it.second }
-                                .take(5)
-                                .forEach { (itemName, quantity) ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(itemName)
-                                        Text("${quantity} sold", fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// --- Screens for Order Records ---
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OrderRecordsScreen(
-    navController: NavController,
-    orderRecords: List<OrderRecord>,
-    onOrderClick: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Order History") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back to Menu")
-                    }
-                }
-            )
-        },
-        modifier = modifier.fillMaxSize()
-    ) { innerPadding ->
-        if (orderRecords.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No past orders found.", style = MaterialTheme.typography.bodyLarge)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(orderRecords.sortedByDescending { it.timestamp }, key = { it.id }) { record -> // Sort by most recent
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .clickable { onOrderClick(record.id) },
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "Order ID: ...${record.id.takeLast(6)}", // Show a shortened, more readable ID
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Text(
-                                "Items: ${record.items.size}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                "Total: ₱${"%.2f".format(record.totalAmount)}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                // Format date for better readability
-                                "Date: ${SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.getDefault()).format(record.timestamp)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OrderDetailScreen(
-    navController: NavController,
-    orderRecord: OrderRecord,
-    modifier: Modifier = Modifier
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Order: ...${orderRecord.id.takeLast(6)}") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back to Order History")
+                        )
                     }
                 }
             )
@@ -1031,80 +1045,136 @@ fun OrderDetailScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .padding(16.dp) // Overall padding for the content
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
         ) {
-            Text(
-                "Order ID: ${orderRecord.id}",
-                style = MaterialTheme.typography.labelSmall, // Use a smaller style for less prominent info
-                color = MaterialTheme.colorScheme.onSurfaceVariant // Slightly muted color
-            )
-            Text(
-                "Date: ${
-                    SimpleDateFormat("MMM dd, yyyy - hh:mm:ss a", Locale.getDefault()).format(
-                        orderRecord.timestamp
-                    )
-                }",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 16.dp) // Space after date
-            )
-
-            Text(
-                "Items in this Order:",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            LazyColumn(modifier = Modifier.weight(1f)) { // Make item list scrollable if long
-                items(orderRecord.items, key = { it.id }) { item ->
-                    OrderItemRow(
-                        orderItem = item,
-                        showDeleteButton = false // Don't show delete for past order items here
-                    )
-                    Divider(modifier = Modifier.padding(vertical = 4.dp)) // Separator between items
-                }
+            // Overall Statistics Card
+            StatisticsCard(
+                title = "Overall Performance",
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                StatisticRow("Total Orders", statistics.totalOrders.toString())
+                StatisticRow("Total Revenue", "₱${"%.2f".format(statistics.totalRevenue)}")
+                StatisticRow("Average Order Value", "₱${"%.2f".format(statistics.averageOrderValue)}")
+                StatisticRow("Most Popular Item", "${statistics.mostPopularItem} (${statistics.mostPopularItemCount} sold)")
             }
 
-            Spacer(modifier = Modifier.height(16.dp)) // Space before summary
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Summary Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // Less prominent elevation
+            // Today's Statistics
+            StatisticsCard(
+                title = "Today's Performance",
+                color = MaterialTheme.colorScheme.secondary
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                StatisticRow("Orders Today", statistics.todayOrders.toString())
+                StatisticRow("Revenue Today", "₱${"%.2f".format(statistics.todayRevenue)}")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // This Week's Statistics
+            StatisticsCard(
+                title = "This Week's Performance",
+                color = MaterialTheme.colorScheme.tertiary
+            ) {
+                StatisticRow("Orders This Week", statistics.thisWeekOrders.toString())
+                StatisticRow("Revenue This Week", "₱${"%.2f".format(statistics.thisWeekRevenue)}")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // This Month's Statistics
+            StatisticsCard(
+                title = "This Month's Performance",
+                color = MaterialTheme.colorScheme.error
+            ) {
+                StatisticRow("Orders This Month", statistics.thisMonthOrders.toString())
+                StatisticRow("Revenue This Month", "₱${"%.2f".format(statistics.thisMonthRevenue)}")
+            }
+
+            if (orderRecords.isEmpty()) {
+                Spacer(modifier = Modifier.height(32.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text("Subtotal:", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            "₱${"%.2f".format(orderRecord.totalAmount)}",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Amount Tendered:", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            "₱${"%.2f".format(orderRecord.amountTendered)}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Change Given:", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            "₱${"%.2f".format(orderRecord.changeGiven)}",
-                            style = MaterialTheme.typography.bodyMedium
+                            "No orders found. Start taking orders to see statistics!",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun StatisticsCard(
+    title: String,
+    color: Color,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(4.dp, 24.dp)
+                        .background(color, RoundedCornerShape(2.dp))
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+fun StatisticRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
+    }
+    Divider(
+        modifier = Modifier.padding(vertical = 2.dp),
+        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    )
 }
