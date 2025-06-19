@@ -15,7 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.css152lgroup10.noodlemoneybuddy.data.models.OrderRecord
+import com.css152lgroup10.noodlemoneybuddy.data.models.OrderWithItems
 import com.css152lgroup10.noodlemoneybuddy.data.models.SalesDataPoint
 import com.css152lgroup10.noodlemoneybuddy.ui.components.SalesChart
 import com.css152lgroup10.noodlemoneybuddy.ui.components.StatisticRow
@@ -23,29 +23,31 @@ import com.css152lgroup10.noodlemoneybuddy.ui.components.StatisticsCard
 import com.css152lgroup10.noodlemoneybuddy.utils.calculateStatistics
 import com.css152lgroup10.noodlemoneybuddy.utils.exportToCSV
 import com.css152lgroup10.noodlemoneybuddy.utils.exportToExcel
+import com.css152lgroup10.noodlemoneybuddy.utils.processOrdersForVisualization
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     navController: NavController,
-    orderRecords: List<OrderRecord>,
+    orderViewModel: OrderViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val statistics = remember(orderRecords) { calculateStatistics(orderRecords) }
+    val ordersWithItems by orderViewModel.orders.collectAsState()
+    val statistics = remember(ordersWithItems) { calculateStatistics(ordersWithItems) }
     var showExportMenu by remember { mutableStateOf(false) }
     
     // Process sales data for visualization
-    val salesData = remember(orderRecords) { processOrdersForVisualization(orderRecords) }
+    val salesData = remember(ordersWithItems) { processOrdersForVisualization(ordersWithItems) }
     
     // Calculate daily averages for the last 7 days
-    val last7DaysData = remember(orderRecords) {
+    val last7DaysData = remember(ordersWithItems) {
         val calendar = Calendar.getInstance()
         calendar.add(Calendar.DAY_OF_YEAR, -7)
         val startDate = calendar.time
-        orderRecords
-            .filter { it.timestamp >= startDate }
+        ordersWithItems
+            .filter { it.order.timestamp >= startDate }
             .let { processOrdersForVisualization(it) }
     }
 
@@ -70,7 +72,7 @@ fun StatisticsScreen(
                             text = { Text("Export to CSV") },
                             onClick = {
                                 showExportMenu = false
-                                val success = exportToCSV(context, orderRecords)
+                                val success = exportToCSV(context, ordersWithItems)
                                 Toast.makeText(
                                     context,
                                     if (success) "CSV exported successfully!" else "Export failed",
@@ -85,7 +87,7 @@ fun StatisticsScreen(
                             text = { Text("Export to Excel") },
                             onClick = {
                                 showExportMenu = false
-                                val success = exportToExcel(context, orderRecords)
+                                val success = exportToExcel(context, ordersWithItems)
                                 Toast.makeText(
                                     context,
                                     if (success) "Excel file exported successfully!" else "Export failed",
@@ -110,7 +112,7 @@ fun StatisticsScreen(
                 .padding(16.dp)
         ) {
             // Sales Visualization Section
-            if (orderRecords.isNotEmpty()) {
+            if (ordersWithItems.isNotEmpty()) {
                 Text(
                     "Sales Visualization",
                     style = MaterialTheme.typography.titleLarge,
@@ -181,7 +183,7 @@ fun StatisticsScreen(
                 StatisticRow("Revenue This Month", "₱${"%.2f".format(statistics.thisMonthRevenue)}")
             }
 
-            if (orderRecords.isEmpty()) {
+            if (ordersWithItems.isEmpty()) {
                 Spacer(modifier = Modifier.height(32.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -205,25 +207,4 @@ fun StatisticsScreen(
             }
         }
     }
-}
-
-private fun processOrdersForVisualization(orders: List<OrderRecord>): List<SalesDataPoint> {
-    return orders
-        .groupBy { order ->
-            val calendar = Calendar.getInstance()
-            calendar.time = order.timestamp
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            calendar.time
-        }
-        .map { (date, ordersForDate) ->
-            SalesDataPoint(
-                date = date,
-                amount = ordersForDate.sumOf { it.totalAmount },
-                itemCount = ordersForDate.sumOf { it.items.size }
-            )
-        }
-        .sortedBy { it.date }
 } 

@@ -29,8 +29,7 @@ import java.util.*
 @Composable
 fun OrderListScreen(
     navController: NavController,
-    orderItems: MutableState<List<OrderItem>>,
-    onSaveOrder: (OrderRecord) -> Unit,
+    orderViewModel: OrderViewModel,
     modifier: Modifier = Modifier
 ) {
     val buttonShape = RoundedCornerShape(8.dp)
@@ -43,8 +42,11 @@ fun OrderListScreen(
     var changeAmount by remember { mutableStateOf<Double?>(null) }
     var showPaymentSuccessDialog by remember { mutableStateOf(false) }
 
-    val totalCost = remember(orderItems.value) {
-        orderItems.value.sumOf { it.getTotalPrice() }
+    // Local state for the current order being created
+    var orderItems by remember { mutableStateOf(listOf<OrderItem>()) }
+
+    val totalCost = remember(orderItems) {
+        orderItems.sumOf { it.getTotalPrice() }
     }
 
     Scaffold(
@@ -54,7 +56,7 @@ fun OrderListScreen(
                 title = { Text("Create New Order") },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (orderItems.value.isNotEmpty()) {
+                        if (orderItems.isNotEmpty()) {
                             showCancelOrderConfirmDialog = true
                         } else {
                             navController.popBackStack()
@@ -66,7 +68,7 @@ fun OrderListScreen(
             )
         },
         floatingActionButton = {
-            if (orderItems.value.isNotEmpty() && !showAmountTenderedDialog) {
+            if (orderItems.isNotEmpty() && !showAmountTenderedDialog) {
                 FloatingActionButton(
                     onClick = { showItemSelectionDialog = true },
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -78,7 +80,7 @@ fun OrderListScreen(
             }
         },
         bottomBar = {
-            if (orderItems.value.isNotEmpty() && !showAmountTenderedDialog) {
+            if (orderItems.isNotEmpty() && !showAmountTenderedDialog) {
                 BottomAppBar(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -95,7 +97,7 @@ fun OrderListScreen(
                         Button(
                             onClick = { showAmountTenderedDialog = true },
                             shape = buttonShape,
-                            enabled = orderItems.value.isNotEmpty()
+                            enabled = orderItems.isNotEmpty()
                         ) {
                             Text("Checkout")
                         }
@@ -109,7 +111,7 @@ fun OrderListScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            if (orderItems.value.isEmpty()) {
+            if (orderItems.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -143,11 +145,11 @@ fun OrderListScreen(
                         .padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
                 ) {
-                    items(orderItems.value, key = { it.id }) { item ->
+                    items(orderItems, key = { it.id }) { item ->
                         OrderItemRow(
                             orderItem = item,
                             onDelete = {
-                                orderItems.value = orderItems.value.filterNot { it.id == item.id }
+                                orderItems = orderItems.filterNot { it.id == item.id }
                             },
                             showDeleteButton = true
                         )
@@ -165,7 +167,7 @@ fun OrderListScreen(
                 text = { Text("Are you sure you want to cancel this order? All items will be removed.") },
                 confirmButton = {
                     TextButton(onClick = {
-                        orderItems.value = emptyList()
+                        orderItems = emptyList()
                         showCancelOrderConfirmDialog = false
                         navController.popBackStack()
                     }) { Text("Yes, Cancel") }
@@ -197,11 +199,12 @@ fun OrderListScreen(
                     },
                     onConfirm = { quantity ->
                         val newItem = OrderItem(
+                            orderId = "temp", // Will be replaced on save
                             name = menuItem.name,
                             quantity = quantity,
                             price = menuItem.price
                         )
-                        orderItems.value = orderItems.value + newItem
+                        orderItems = orderItems + newItem
                         showFullScreenQuantityDialog = false
                         selectedMenuItemForQuantity = null
                     }
@@ -220,14 +223,17 @@ fun OrderListScreen(
                         showAmountTenderedDialog = false
                         showPaymentSuccessDialog = true
 
-                        val newRecord = OrderRecord(
-                            items = orderItems.value,
+                        val orderId = UUID.randomUUID().toString()
+                        val orderRecord = OrderRecord(
+                            id = orderId,
                             totalAmount = totalCost,
                             amountTendered = tendered,
                             changeGiven = change,
                             timestamp = Date()
                         )
-                        onSaveOrder(newRecord)
+                        val itemsWithOrderId = orderItems.map { it.copy(orderId = orderId) }
+                        orderViewModel.addOrder(orderRecord, itemsWithOrderId)
+                        orderItems = emptyList()
                     } else {
                         showAmountTenderedDialog = false
                     }

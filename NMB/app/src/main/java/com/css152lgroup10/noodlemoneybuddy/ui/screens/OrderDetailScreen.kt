@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.css152lgroup10.noodlemoneybuddy.data.models.MenuItem
 import com.css152lgroup10.noodlemoneybuddy.data.models.OrderItem
-import com.css152lgroup10.noodlemoneybuddy.data.models.OrderRecord
 import com.css152lgroup10.noodlemoneybuddy.ui.components.OrderItemRow
 import com.css152lgroup10.noodlemoneybuddy.utils.MenuItems
 import java.text.SimpleDateFormat
@@ -26,13 +25,14 @@ import java.util.*
 @Composable
 fun OrderDetailScreen(
     navController: NavController,
-    orderRecord: OrderRecord,
-    onUpdateOrder: (OrderRecord) -> Unit,
-    onDeleteOrder: (String) -> Unit,
+    orderId: String,
+    orderViewModel: OrderViewModel,
     modifier: Modifier = Modifier
 ) {
+    val orderWithItems by orderViewModel.orderWithItemsFlow(orderId).collectAsState()
+    val orderRecord = orderWithItems?.order
     var isEditing by remember { mutableStateOf(false) }
-    var items by remember { mutableStateOf(orderRecord.items.map { it.copy() }) }
+    var items by remember { mutableStateOf(orderWithItems?.items?.map { it.copy() } ?: emptyList()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showItemSelectionDialog by remember { mutableStateOf(false) }
     var selectedMenuItemForQuantity by remember { mutableStateOf<MenuItem?>(null) }
@@ -45,7 +45,15 @@ fun OrderDetailScreen(
     var pendingMenuItem by remember { mutableStateOf<MenuItem?>(null) }
     var pendingQuantity by remember { mutableStateOf<Int?>(null) }
     var pendingEditIndex by remember { mutableStateOf(-1) }
-    
+
+    if (orderRecord == null) {
+        // Show loading or not found
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Order not found.")
+        }
+        return
+    }
+
     val totalCost = items.sumOf { it.getTotalPrice() }
     val isValidTendered = orderRecord.amountTendered >= totalCost
 
@@ -72,6 +80,7 @@ fun OrderDetailScreen(
                 }
             } else {
                 items = items + OrderItem(
+                    orderId = orderRecord.id,
                     name = menuItem.name,
                     quantity = quantity,
                     price = menuItem.price
@@ -88,6 +97,7 @@ fun OrderDetailScreen(
                 }
             } else {
                 items = items + OrderItem(
+                    orderId = orderRecord.id,
                     name = pendingMenuItem!!.name,
                     quantity = pendingQuantity!!,
                     price = pendingMenuItem!!.price
@@ -120,11 +130,10 @@ fun OrderDetailScreen(
                         IconButton(onClick = {
                             if (isValidTendered) {
                                 val updatedOrder = orderRecord.copy(
-                                    items = items,
                                     totalAmount = totalCost,
                                     changeGiven = orderRecord.amountTendered - totalCost
                                 )
-                                onUpdateOrder(updatedOrder)
+                                orderViewModel.updateOrder(updatedOrder)
                                 isEditing = false
                             } else {
                                 showInsufficientTenderedDialog = true
@@ -132,9 +141,9 @@ fun OrderDetailScreen(
                         }) {
                             Icon(Icons.Filled.Check, contentDescription = "Save changes")
                         }
-                        IconButton(onClick = { 
+                        IconButton(onClick = {
                             isEditing = false
-                            items = orderRecord.items.map { it.copy() }
+                            items = orderWithItems?.items?.map { it.copy() } ?: emptyList()
                         }) {
                             Icon(Icons.Filled.Close, contentDescription = "Cancel edit")
                         }
@@ -383,7 +392,7 @@ fun OrderDetailScreen(
                                 val updatedOrder = orderRecord.copy(
                                     amountTendered = newTendered
                                 )
-                                onUpdateOrder(updatedOrder)
+                                orderViewModel.updateOrder(updatedOrder)
                                 applyPendingUpdate()
                                 showUpdateTenderedDialog = false
                             }
@@ -418,7 +427,7 @@ fun OrderDetailScreen(
                 text = { Text("Are you sure you want to delete this order record?") },
                 confirmButton = {
                     TextButton(onClick = {
-                        onDeleteOrder(orderRecord.id)
+                        orderViewModel.deleteOrder(orderRecord)
                         showDeleteDialog = false
                     }) { Text("Delete") }
                 },

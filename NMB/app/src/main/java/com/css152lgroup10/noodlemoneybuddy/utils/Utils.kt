@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Environment
 import androidx.core.content.FileProvider
-import com.css152lgroup10.noodlemoneybuddy.data.models.OrderRecord
+import com.css152lgroup10.noodlemoneybuddy.data.models.OrderWithItems
 import com.css152lgroup10.noodlemoneybuddy.data.models.OrderStatistics
 import com.css152lgroup10.noodlemoneybuddy.data.models.SalesDataPoint
 import java.io.File
@@ -24,18 +24,18 @@ class ClickDebouncer(private val delayMillis: Long = 500L) {
     }
 }
 
-fun calculateStatistics(orderRecords: List<OrderRecord>): OrderStatistics {
-    if (orderRecords.isEmpty()) {
+fun calculateStatistics(orderWithItemsList: List<OrderWithItems>): OrderStatistics {
+    if (orderWithItemsList.isEmpty()) {
         return OrderStatistics(0, 0.0, 0.0, "None", 0, 0, 0.0, 0, 0.0, 0, 0.0)
     }
 
-    val totalOrders = orderRecords.size
-    val totalRevenue = orderRecords.sumOf { it.totalAmount }
+    val totalOrders = orderWithItemsList.size
+    val totalRevenue = orderWithItemsList.sumOf { it.order.totalAmount }
     val averageOrderValue = totalRevenue / totalOrders
 
     val itemCounts = mutableMapOf<String, Int>()
-    orderRecords.forEach { order ->
-        order.items.forEach { item ->
+    orderWithItemsList.forEach { orderWithItems ->
+        orderWithItems.items.forEach { item ->
             itemCounts[item.name] = itemCounts.getOrDefault(item.name, 0) + item.quantity
         }
     }
@@ -62,9 +62,9 @@ fun calculateStatistics(orderRecords: List<OrderRecord>): OrderStatistics {
     calendar.set(Calendar.MILLISECOND, 0)
     val startOfMonth = calendar.time
 
-    val todayOrders = orderRecords.filter { it.timestamp >= startOfToday }
-    val thisWeekOrders = orderRecords.filter { it.timestamp >= startOfWeek }
-    val thisMonthOrders = orderRecords.filter { it.timestamp >= startOfMonth }
+    val todayOrders = orderWithItemsList.filter { it.order.timestamp >= startOfToday }
+    val thisWeekOrders = orderWithItemsList.filter { it.order.timestamp >= startOfWeek }
+    val thisMonthOrders = orderWithItemsList.filter { it.order.timestamp >= startOfMonth }
 
     return OrderStatistics(
         totalOrders = totalOrders,
@@ -73,19 +73,19 @@ fun calculateStatistics(orderRecords: List<OrderRecord>): OrderStatistics {
         mostPopularItem = mostPopularItemName,
         mostPopularItemCount = mostPopularItemCount,
         todayOrders = todayOrders.size,
-        todayRevenue = todayOrders.sumOf { it.totalAmount },
+        todayRevenue = todayOrders.sumOf { it.order.totalAmount },
         thisWeekOrders = thisWeekOrders.size,
-        thisWeekRevenue = thisWeekOrders.sumOf { it.totalAmount },
+        thisWeekRevenue = thisWeekOrders.sumOf { it.order.totalAmount },
         thisMonthOrders = thisMonthOrders.size,
-        thisMonthRevenue = thisMonthOrders.sumOf { it.totalAmount }
+        thisMonthRevenue = thisMonthOrders.sumOf { it.order.totalAmount }
     )
 }
 
-fun processOrdersForVisualization(orders: List<OrderRecord>): List<SalesDataPoint> {
-    return orders
-        .groupBy { order ->
+fun processOrdersForVisualization(orderWithItemsList: List<OrderWithItems>): List<SalesDataPoint> {
+    return orderWithItemsList
+        .groupBy { orderWithItems ->
             val calendar = Calendar.getInstance()
-            calendar.time = order.timestamp
+            calendar.time = orderWithItems.order.timestamp
             calendar.set(Calendar.HOUR_OF_DAY, 0)
             calendar.set(Calendar.MINUTE, 0)
             calendar.set(Calendar.SECOND, 0)
@@ -95,23 +95,24 @@ fun processOrdersForVisualization(orders: List<OrderRecord>): List<SalesDataPoin
         .map { (date, ordersForDate) ->
             SalesDataPoint(
                 date = date,
-                amount = ordersForDate.sumOf { it.totalAmount },
+                amount = ordersForDate.sumOf { it.order.totalAmount },
                 itemCount = ordersForDate.sumOf { it.items.size }
             )
         }
         .sortedBy { it.date }
 }
 
-fun exportToCSV(context: Context, orderRecords: List<OrderRecord>): Boolean {
+fun exportToCSV(context: Context, orderWithItemsList: List<OrderWithItems>): Boolean {
     return try {
         val fileName = "noodle_buddy_orders_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.csv"
         val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName)
 
         FileWriter(file).use { writer ->
             writer.append("Order ID,Date,Item Name,Quantity,Unit Price,Total Price,Order Total,Amount Tendered,Change Given\n")
-            orderRecords.forEach { order ->
+            orderWithItemsList.forEach { orderWithItems ->
+                val order = orderWithItems.order
                 val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(order.timestamp)
-                order.items.forEach { item ->
+                orderWithItems.items.forEach { item ->
                     writer.append("${order.id},")
                     writer.append("$dateString,")
                     writer.append("\"${item.name}\",")
@@ -132,16 +133,17 @@ fun exportToCSV(context: Context, orderRecords: List<OrderRecord>): Boolean {
     }
 }
 
-fun exportToExcel(context: Context, orderRecords: List<OrderRecord>): Boolean {
+fun exportToExcel(context: Context, orderWithItemsList: List<OrderWithItems>): Boolean {
     return try {
         val fileName = "noodle_buddy_orders_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.csv"
         val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName)
 
         FileWriter(file).use { writer ->
             writer.append("Order ID\tDate\tItem Name\tQuantity\tUnit Price\tTotal Price\tOrder Total\tAmount Tendered\tChange Given\n")
-            orderRecords.forEach { order ->
+            orderWithItemsList.forEach { orderWithItems ->
+                val order = orderWithItems.order
                 val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(order.timestamp)
-                order.items.forEach { item ->
+                orderWithItems.items.forEach { item ->
                     writer.append("${order.id}\t")
                     writer.append("$dateString\t")
                     writer.append("${item.name}\t")

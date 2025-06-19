@@ -15,7 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.css152lgroup10.noodlemoneybuddy.data.models.OrderRecord
+import com.css152lgroup10.noodlemoneybuddy.data.models.OrderWithItems
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -23,13 +23,12 @@ import java.util.*
 @Composable
 fun OrderRecordsScreen(
     navController: NavController,
-    orderRecords: List<OrderRecord>,
-    onOrderClick: (String) -> Unit,
-    onDeleteOrder: (String) -> Unit,
+    orderViewModel: OrderViewModel,
     modifier: Modifier = Modifier
 ) {
     var showDeleteDialog by remember { mutableStateOf<String?>(null) }
-    
+    val orders by orderViewModel.orders.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -43,7 +42,7 @@ fun OrderRecordsScreen(
         },
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
-        if (orderRecords.isEmpty()) {
+        if (orders.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -63,11 +62,11 @@ fun OrderRecordsScreen(
                     .padding(innerPadding),
                 contentPadding = PaddingValues(16.dp)
             ) {
-                items(orderRecords, key = { it.id }) { record ->
+                items(orders, key = { it.order.id }) { orderWithItems ->
                     OrderRecordCard(
-                        orderRecord = record,
-                        onClick = { onOrderClick(record.id) },
-                        onDelete = { showDeleteDialog = record.id }
+                        orderWithItems = orderWithItems,
+                        onClick = { navController.navigate("order_detail/${orderWithItems.order.id}") },
+                        onDelete = { showDeleteDialog = orderWithItems.order.id }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -81,7 +80,8 @@ fun OrderRecordsScreen(
                 text = { Text("Are you sure you want to delete this order record?") },
                 confirmButton = {
                     TextButton(onClick = {
-                        onDeleteOrder(showDeleteDialog!!)
+                        val order = orders.find { it.order.id == showDeleteDialog }
+                        if (order != null) orderViewModel.deleteOrder(order.order)
                         showDeleteDialog = null
                     }) { Text("Delete") }
                 },
@@ -95,11 +95,13 @@ fun OrderRecordsScreen(
 
 @Composable
 fun OrderRecordCard(
-    orderRecord: OrderRecord,
+    orderWithItems: OrderWithItems,
     onClick: () -> Unit,
     onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val orderRecord = orderWithItems.order
+    val items = orderWithItems.items
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -143,10 +145,10 @@ fun OrderRecordCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "${orderRecord.items.size} item(s)",
+                "${items.size} item(s)",
                 style = MaterialTheme.typography.bodyMedium
             )
-            val itemsToShow = orderRecord.items.take(2)
+            val itemsToShow = items.take(2)
             itemsToShow.forEach { item ->
                 Text(
                     "• ${item.name} (${item.quantity}x)",
@@ -154,9 +156,9 @@ fun OrderRecordCard(
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }
-            if (orderRecord.items.size > 2) {
+            if (items.size > 2) {
                 Text(
-                    "• ... and ${orderRecord.items.size - 2} more items",
+                    "• ... and ${items.size - 2} more items",
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(start = 8.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
