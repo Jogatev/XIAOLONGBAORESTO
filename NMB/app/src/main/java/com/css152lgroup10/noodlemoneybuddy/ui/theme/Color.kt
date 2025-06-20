@@ -11,6 +11,11 @@ val Red500 = Color(0xFFF44336)
 val Red700 = Color(0xFFD32F2F)
 val Red900 = Color(0xFFB71C1C)
 
+val Yellow500 = Color(0xFFFFEB3B)
+val Yellow700 = Color(0xFFFBC02D)
+
+val Peach = Color(0xFFFFDAB9) // Peach accent
+
 val Green500 = Color(0xFF4CAF50)
 val Green700 = Color(0xFF388E3C)
 val Green900 = Color(0xFF1B5E20)

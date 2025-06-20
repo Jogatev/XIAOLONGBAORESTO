@@ -149,10 +149,7 @@ fun MenuScreen(
                     PulseAnimation {
                         Text(
                             text = "XIAOLONGBAO",
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 36.sp
-                            ),
+                            style = cartoonTitle,
                             color = MaterialTheme.colorScheme.primary,
                             textAlign = TextAlign.Center
                         )
