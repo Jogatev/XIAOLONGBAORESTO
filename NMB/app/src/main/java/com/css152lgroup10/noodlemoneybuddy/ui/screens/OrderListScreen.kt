@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
@@ -213,18 +214,24 @@ fun OrderListScreen(
                             RippleAnimation(isPressed = false) {
                                 Button(
                                     onClick = { showItemSelectionDialog = true },
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(20.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary
-                                    )
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(72.dp)
                                 ) {
                                     Icon(
                                         Icons.Filled.Add,
                                         contentDescription = "Add item",
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(32.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Add First Item")
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text(
+                                        "Add First Item",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    )
                                 }
                             }
                         }

@@ -24,9 +24,29 @@ class ClickDebouncer(private val delayMillis: Long = 500L) {
     }
 }
 
+data class OrderStatistics(
+    val totalOrders: Int,
+    val totalRevenue: Double,
+    val averageOrderValue: Double,
+    val mostPopularItem: String,
+    val mostPopularItemCount: Int,
+    val todayOrders: Int,
+    val todayRevenue: Double,
+    val thisWeekOrders: Int,
+    val thisWeekRevenue: Double,
+    val thisMonthOrders: Int,
+    val thisMonthRevenue: Double,
+    val mostPopularItemToday: String,
+    val mostPopularItemTodayCount: Int,
+    val mostPopularItemThisWeek: String,
+    val mostPopularItemThisWeekCount: Int,
+    val mostPopularItemThisMonth: String,
+    val mostPopularItemThisMonthCount: Int
+)
+
 fun calculateStatistics(orderWithItemsList: List<OrderWithItems>): OrderStatistics {
     if (orderWithItemsList.isEmpty()) {
-        return OrderStatistics(0, 0.0, 0.0, "None", 0, 0, 0.0, 0, 0.0, 0, 0.0)
+        return OrderStatistics(0, 0.0, 0.0, "None", 0, 0, 0.0, 0, 0.0, 0, 0.0, "None", 0, "None", 0, "None", 0)
     }
 
     val totalOrders = orderWithItemsList.size
@@ -66,6 +86,20 @@ fun calculateStatistics(orderWithItemsList: List<OrderWithItems>): OrderStatisti
     val thisWeekOrders = orderWithItemsList.filter { it.order.timestamp >= startOfWeek }
     val thisMonthOrders = orderWithItemsList.filter { it.order.timestamp >= startOfMonth }
 
+    fun mostPopularItemFor(orders: List<OrderWithItems>): Pair<String, Int> {
+        val itemCounts = mutableMapOf<String, Int>()
+        orders.forEach { orderWithItems ->
+            orderWithItems.items.forEach { item ->
+                itemCounts[item.name] = itemCounts.getOrDefault(item.name, 0) + item.quantity
+            }
+        }
+        val mostPopular = itemCounts.maxByOrNull { it.value }
+        return Pair(mostPopular?.key ?: "None", mostPopular?.value ?: 0)
+    }
+    val (mostPopularItemToday, mostPopularItemTodayCount) = mostPopularItemFor(todayOrders)
+    val (mostPopularItemThisWeek, mostPopularItemThisWeekCount) = mostPopularItemFor(thisWeekOrders)
+    val (mostPopularItemThisMonth, mostPopularItemThisMonthCount) = mostPopularItemFor(thisMonthOrders)
+
     return OrderStatistics(
         totalOrders = totalOrders,
         totalRevenue = totalRevenue,
@@ -77,7 +111,13 @@ fun calculateStatistics(orderWithItemsList: List<OrderWithItems>): OrderStatisti
         thisWeekOrders = thisWeekOrders.size,
         thisWeekRevenue = thisWeekOrders.sumOf { it.order.totalAmount },
         thisMonthOrders = thisMonthOrders.size,
-        thisMonthRevenue = thisMonthOrders.sumOf { it.order.totalAmount }
+        thisMonthRevenue = thisMonthOrders.sumOf { it.order.totalAmount },
+        mostPopularItemToday = mostPopularItemToday,
+        mostPopularItemTodayCount = mostPopularItemTodayCount,
+        mostPopularItemThisWeek = mostPopularItemThisWeek,
+        mostPopularItemThisWeekCount = mostPopularItemThisWeekCount,
+        mostPopularItemThisMonth = mostPopularItemThisMonth,
+        mostPopularItemThisMonthCount = mostPopularItemThisMonthCount
     )
 }
 

@@ -224,6 +224,7 @@ fun StatisticsScreen(
                 ) {
                     StatisticRow("Orders Today", statistics.todayOrders.toString())
                     StatisticRow("Revenue Today", "₱${"%.2f".format(statistics.todayRevenue)}")
+                    StatisticRow("Most Popular Item Today", "${statistics.mostPopularItemToday} (${statistics.mostPopularItemTodayCount} sold)")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -235,6 +236,7 @@ fun StatisticsScreen(
                 ) {
                     StatisticRow("Orders This Week", statistics.thisWeekOrders.toString())
                     StatisticRow("Revenue This Week", "₱${"%.2f".format(statistics.thisWeekRevenue)}")
+                    StatisticRow("Most Popular Item This Week", "${statistics.mostPopularItemThisWeek} (${statistics.mostPopularItemThisWeekCount} sold)")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -246,6 +248,7 @@ fun StatisticsScreen(
                 ) {
                     StatisticRow("Orders This Month", statistics.thisMonthOrders.toString())
                     StatisticRow("Revenue This Month", "₱${"%.2f".format(statistics.thisMonthRevenue)}")
+                    StatisticRow("Most Popular Item This Month", "${statistics.mostPopularItemThisMonth} (${statistics.mostPopularItemThisMonthCount} sold)")
                 }
 
                 if (ordersWithItems.isEmpty()) {

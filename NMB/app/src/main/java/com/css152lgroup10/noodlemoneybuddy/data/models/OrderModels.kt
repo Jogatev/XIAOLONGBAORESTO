@@ -35,7 +35,13 @@ data class OrderStatistics(
     val thisWeekOrders: Int,
     val thisWeekRevenue: Double,
     val thisMonthOrders: Int,
-    val thisMonthRevenue: Double
+    val thisMonthRevenue: Double,
+    val mostPopularItemToday: String,
+    val mostPopularItemTodayCount: Int,
+    val mostPopularItemThisWeek: String,
+    val mostPopularItemThisWeekCount: Int,
+    val mostPopularItemThisMonth: String,
+    val mostPopularItemThisMonthCount: Int
 )
 
 @Entity(tableName = "order_records")
