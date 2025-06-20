@@ -20,6 +20,7 @@ import com.css152lgroup10.noodlemoneybuddy.ui.components.OrderItemRow
 import com.css152lgroup10.noodlemoneybuddy.utils.MenuItems
 import java.text.SimpleDateFormat
 import java.util.*
+import com.css152lgroup10.noodlemoneybuddy.data.models.OrderWithItems
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,10 +30,21 @@ fun OrderDetailScreen(
     orderViewModel: OrderViewModel,
     modifier: Modifier = Modifier
 ) {
-    val orderWithItems by orderViewModel.orderWithItemsFlow(orderId).collectAsState()
+    var orderWithItems: OrderWithItems? by remember { mutableStateOf(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    LaunchedEffect(orderId) {
+        isLoading = true
+        orderWithItems = orderViewModel.getOrderWithItems(orderId)
+        isLoading = false
+    }
     val orderRecord = orderWithItems?.order
     var isEditing by remember { mutableStateOf(false) }
     var items by remember { mutableStateOf(orderWithItems?.items?.map { it.copy() } ?: emptyList()) }
+    LaunchedEffect(orderWithItems, isEditing) {
+        if (!isEditing) {
+            items = orderWithItems?.items?.map { it.copy() } ?: emptyList()
+        }
+    }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showItemSelectionDialog by remember { mutableStateOf(false) }
     var selectedMenuItemForQuantity by remember { mutableStateOf<MenuItem?>(null) }
@@ -46,8 +58,13 @@ fun OrderDetailScreen(
     var pendingQuantity by remember { mutableStateOf<Int?>(null) }
     var pendingEditIndex by remember { mutableStateOf(-1) }
 
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
     if (orderRecord == null) {
-        // Show loading or not found
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Order not found.")
         }

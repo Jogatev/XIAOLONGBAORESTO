@@ -46,9 +46,19 @@ fun OrderRecordsScreen(
         if (searchQuery.isEmpty()) {
             orders
         } else {
+            val query = searchQuery.trim().lowercase()
             orders.filter { orderWithItems ->
-                orderWithItems.order.id.contains(searchQuery, ignoreCase = true) ||
-                orderWithItems.items.any { it.name.contains(searchQuery, ignoreCase = true) }
+                // Match order ID
+                orderWithItems.order.id.contains(query, ignoreCase = true) ||
+                // Match any item name
+                orderWithItems.items.any { it.name.lowercase().contains(query) } ||
+                // Match amounts (total, tendered, change)
+                runCatching { query.toDouble() }.getOrNull()?.let { numQuery ->
+                    val total = orderWithItems.order.totalAmount
+                    val tendered = orderWithItems.order.amountTendered
+                    val change = orderWithItems.order.changeGiven
+                    total == numQuery || tendered == numQuery || change == numQuery
+                } == true
             }
         }
     }
@@ -140,22 +150,22 @@ fun OrderRecordsScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(20.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(10.dp),
+                            modifier = Modifier.padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Smaller icon with colored background
+                            // Icon with colored background
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .clip(RoundedCornerShape(12.dp))
                                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -166,7 +176,8 @@ fun OrderRecordsScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            // Stats
                             Column(
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -180,7 +191,8 @@ fun OrderRecordsScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    // Total Orders
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "Total Orders",
                                             style = MaterialTheme.typography.bodySmall,
@@ -188,11 +200,12 @@ fun OrderRecordsScreen(
                                         )
                                         Text(
                                             text = "${orders.size}",
-                                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                             color = MaterialTheme.colorScheme.onPrimary
                                         )
                                     }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    // Total Revenue
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "Total Revenue",
                                             style = MaterialTheme.typography.bodySmall,
@@ -200,7 +213,7 @@ fun OrderRecordsScreen(
                                         )
                                         Text(
                                             text = "₱${"%.2f".format(orders.sumOf { it.order.totalAmount })}",
-                                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                             color = MaterialTheme.colorScheme.onPrimary
                                         )
                                     }

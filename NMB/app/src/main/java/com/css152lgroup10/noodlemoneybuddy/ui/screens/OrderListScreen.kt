@@ -859,6 +859,17 @@ fun EnhancedAmountTenderedDialog(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
                     )
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { onAmountTenderedChange("%.2f".format(totalCost)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text("Exact Amount")
+                }
                 
                 if (showError) {
                     Text(
