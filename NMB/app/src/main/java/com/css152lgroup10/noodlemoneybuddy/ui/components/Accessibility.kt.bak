@@ -1,0 +1,477 @@
+package com.css152lgroup10.noodlemoneybuddy.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+// High contrast mode support
+@Composable
+fun rememberHighContrastMode(): Boolean {
+    // This would typically check system settings
+    // For now, we'll provide a manual toggle
+    return false
+}
+
+// Accessible button with proper semantics
+@Composable
+fun AccessibleButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    contentDescription: String? = null,
+    role: Role = Role.Button,
+    content: @Composable RowScope.() -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.semantics {
+            contentDescription?.let { this.contentDescription = it }
+            this.role = role
+            if (!enabled) this.disabled()
+        },
+        enabled = enabled,
+        content = content
+    )
+}
+
+// Accessible card with proper focus handling
+@Composable
+fun AccessibleCard(
+    onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+    content: @Composable () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    
+    Card(
+        modifier = modifier
+            .then(
+                if (onClick != null) {
+                    Modifier
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) { onClick() }
+                        .focusable()
+                } else {
+                    Modifier
+                }
+            )
+            .semantics {
+                contentDescription?.let { this.contentDescription = it }
+                if (onClick != null) {
+                    this.role = Role.Button
+                }
+            }
+            .then(
+                if (isFocused) {
+                    Modifier.border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                } else {
+                    Modifier
+                }
+            ),
+        content = content
+    )
+}
+
+// Accessible text with proper semantics
+@Composable
+fun AccessibleText(
+    text: String,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+    isHeading: Boolean = false,
+    isImportant: Boolean = false
+) {
+    Text(
+        text = text,
+        modifier = modifier.semantics {
+            contentDescription?.let { this.contentDescription = it }
+            if (isHeading) this.heading()
+            if (isImportant) this.liveRegion = LiveRegionMode.Polite
+        },
+        style = MaterialTheme.typography.bodyMedium.copy(
+            fontSize = if (isHeading) 18.sp else 14.sp,
+            fontWeight = if (isHeading) FontWeight.Bold else FontWeight.Normal
+        )
+    )
+}
+
+// Accessible icon with proper description
+@Composable
+fun AccessibleIcon(
+    imageVector: ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.onSurface
+) {
+    Icon(
+        imageVector = imageVector,
+        contentDescription = contentDescription,
+        modifier = modifier.semantics {
+            this.contentDescription = contentDescription
+        },
+        tint = tint
+    )
+}
+
+// Accessible search bar
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AccessibleSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String = "Search items...",
+    onSearch: () -> Unit = {}
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = { Text(placeholder) },
+        leadingIcon = {
+            AccessibleIcon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search icon"
+            )
+        },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(
+                    onClick = { onQueryChange("") },
+                    modifier = Modifier.semantics {
+                        contentDescription = "Clear search"
+                    }
+                ) {
+                    AccessibleIcon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = "Clear search"
+                    )
+                }
+            }
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Search field"
+                this.role = Role.Search
+            },
+        singleLine = true,
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            imeAction = androidx.compose.ui.text.input.ImeAction.Search
+        ),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+            onSearch = { onSearch() }
+        )
+    )
+}
+
+// Accessible progress indicator
+@Composable
+fun AccessibleProgressIndicator(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null
+) {
+    LinearProgressIndicator(
+        progress = progress,
+        modifier = modifier.semantics {
+            contentDescription?.let { this.contentDescription = it }
+            this.progressBarRangeInfo = ProgressBarRangeInfo(
+                current = progress,
+                range = 0f..1f,
+                steps = 0
+            )
+        }
+    )
+}
+
+// Accessible toggle switch
+@Composable
+fun AccessibleSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null
+) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier.semantics {
+            contentDescription?.let { this.contentDescription = it }
+            this.role = Role.Switch
+            this.stateDescription = if (checked) "On" else "Off"
+        }
+    )
+}
+
+// Accessible list item
+@Composable
+fun AccessibleListItem(
+    title: String,
+    subtitle: String? = null,
+    onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    leadingIcon: @Composable (() -> Unit)? = null,
+    trailingIcon: @Composable (() -> Unit)? = null
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (onClick != null) {
+                    Modifier
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) { onClick() }
+                        .focusable()
+                } else {
+                    Modifier
+                }
+            )
+            .semantics {
+                contentDescription = "$title${subtitle?.let { ", $it" } ?: ""}"
+                if (onClick != null) {
+                    this.role = Role.Button
+                }
+            }
+            .then(
+                if (isFocused) {
+                    Modifier.background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                } else {
+                    Modifier
+                }
+            )
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        leadingIcon?.invoke()
+        
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp)
+        ) {
+            AccessibleText(
+                text = title,
+                isHeading = true
+            )
+            subtitle?.let {
+                AccessibleText(
+                    text = it,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+        
+        trailingIcon?.invoke()
+    }
+}
+
+// Accessible navigation
+@Composable
+fun AccessibleNavigationBar(
+    items: List<NavigationItem>,
+    currentRoute: String,
+    onItemClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NavigationBar(
+        modifier = modifier.semantics {
+            contentDescription = "Bottom navigation bar"
+        }
+    ) {
+        items.forEach { item ->
+            NavigationBarItem(
+                icon = {
+                    AccessibleIcon(
+                        imageVector = item.icon,
+                        contentDescription = item.contentDescription
+                    )
+                },
+                label = { Text(item.label) },
+                selected = currentRoute == item.route,
+                onClick = { onItemClick(item.route) },
+                modifier = Modifier.semantics {
+                    contentDescription = "${item.label}, ${if (currentRoute == item.route) "selected" else "not selected"}"
+                }
+            )
+        }
+    }
+}
+
+data class NavigationItem(
+    val route: String,
+    val label: String,
+    val icon: ImageVector,
+    val contentDescription: String
+)
+
+// Accessible dialog
+@Composable
+fun AccessibleDialog(
+    onDismissRequest: () -> Unit,
+    title: String,
+    content: @Composable () -> Unit,
+    confirmButton: @Composable (() -> Unit)? = null,
+    dismissButton: @Composable (() -> Unit)? = null
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = {
+            AccessibleText(
+                text = title,
+                isHeading = true
+            )
+        },
+        text = { content() },
+        confirmButton = confirmButton,
+        dismissButton = dismissButton,
+        modifier = Modifier.semantics {
+            contentDescription = "Dialog: $title"
+            this.role = Role.Dialog
+        }
+    )
+}
+
+// Accessible error message
+@Composable
+fun AccessibleErrorMessage(
+    message: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Error: $message"
+                this.liveRegion = LiveRegionMode.Assertive
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AccessibleIcon(
+                imageVector = Icons.Default.Error,
+                contentDescription = "Error icon",
+                tint = MaterialTheme.colorScheme.onErrorContainer
+            )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            AccessibleText(
+                text = message,
+                modifier = Modifier.weight(1f),
+                isImportant = true
+            )
+            
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.semantics {
+                    contentDescription = "Dismiss error message"
+                }
+            ) {
+                AccessibleIcon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close"
+                )
+            }
+        }
+    }
+}
+
+// Accessible loading indicator
+@Composable
+fun AccessibleLoadingIndicator(
+    message: String = "Loading...",
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.semantics {
+            contentDescription = message
+            this.liveRegion = LiveRegionMode.Polite
+        },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.semantics {
+                contentDescription = "Loading indicator"
+            }
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        AccessibleText(
+            text = message,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+// High contrast mode utilities
+object HighContrastUtils {
+    fun getHighContrastColor(
+        baseColor: Color,
+        isHighContrast: Boolean
+    ): Color {
+        return if (isHighContrast) {
+            // Increase contrast for high contrast mode
+            Color(
+                red = (baseColor.red * 0.8f).coerceIn(0f, 1f),
+                green = (baseColor.green * 0.8f).coerceIn(0f, 1f),
+                blue = (baseColor.blue * 0.8f).coerceIn(0f, 1f),
+                alpha = baseColor.alpha
+            )
+        } else {
+            baseColor
+        }
+    }
+    
+    fun getHighContrastBackground(
+        baseColor: Color,
+        isHighContrast: Boolean
+    ): Color {
+        return if (isHighContrast) {
+            Color.White
+        } else {
+            baseColor
+        }
+    }
+} 

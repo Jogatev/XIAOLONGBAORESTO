@@ -289,7 +289,7 @@ fun OrderDetailScreen(
 
         // Add item dialog
         if (showItemSelectionDialog) {
-            FullScreenItemSelectionDialog(
+            EnhancedItemSelectionDialog(
                 onDismissRequest = { showItemSelectionDialog = false },
                 onItemSelected = { selectedMenuItem ->
                     selectedMenuItemForQuantity = selectedMenuItem
@@ -303,7 +303,7 @@ fun OrderDetailScreen(
         // Edit/add quantity dialog
         selectedMenuItemForQuantity?.let { menuItem ->
             if (showFullScreenQuantityDialog) {
-                FullScreenQuantitySelectionDialog(
+                EnhancedQuantitySelectionDialog(
                     menuItem = menuItem,
                     onDismissRequest = {
                         showFullScreenQuantityDialog = false
