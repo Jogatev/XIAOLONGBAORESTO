@@ -11,7 +11,8 @@ data class OrderItem(
     val orderId: String, // Foreign key to OrderRecord
     val name: String,
     val quantity: Int,
-    val price: Double
+    val price: Double,
+    val category: String // New field for category
 ) {
     fun getTotalPrice(): Double = quantity * price
 }
@@ -21,7 +22,8 @@ data class OrderItem(
 data class MenuItem(
     val id: String,
     val name: String,
-    val price: Double
+    val price: Double,
+    val category: String // New field for category
 )
 
 data class OrderStatistics(

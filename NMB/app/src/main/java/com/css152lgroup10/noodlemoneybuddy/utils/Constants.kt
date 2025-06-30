@@ -12,12 +12,12 @@ object AppDestinations {
 
 object MenuItems {
     val availableMenuItems = listOf(
-        MenuItem("noodle_a", "Spicy Ramen", 250.00),
-        MenuItem("noodle_b", "Beef Mami", 180.00),
-        MenuItem("drink_c", "Iced Tea", 60.00),
-        MenuItem("side_d", "Gyoza (3pcs)", 80.00),
-        MenuItem("noodle_e", "Chicken Noodle Soup", 170.00),
-        MenuItem("drink_f", "Coke", 50.00),
-        MenuItem("side_g", "California Maki (4pcs)", 120.00)
+        MenuItem("noodle_a", "Spicy Ramen", 250.00, "Noodles"),
+        MenuItem("noodle_b", "Beef Mami", 180.00, "Noodles"),
+        MenuItem("drink_c", "Iced Tea", 60.00, "Drinks"),
+        MenuItem("side_d", "Gyoza (3pcs)", 80.00, "Sides"),
+        MenuItem("noodle_e", "Chicken Noodle Soup", 170.00, "Noodles"),
+        MenuItem("drink_f", "Coke", 50.00, "Drinks"),
+        MenuItem("side_g", "California Maki (4pcs)", 120.00, "Sides")
     )
 } 

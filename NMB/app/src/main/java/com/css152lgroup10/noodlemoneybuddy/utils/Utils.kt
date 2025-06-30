@@ -10,6 +10,7 @@ import com.css152lgroup10.noodlemoneybuddy.data.models.SalesDataPoint
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
+import java.text.NumberFormat
 import java.util.*
 
 class ClickDebouncer(private val delayMillis: Long = 500L) {
@@ -218,4 +219,11 @@ private fun shareFile(context: Context, file: File, mimeType: String) {
     }
 
     context.startActivity(Intent.createChooser(intent, "Share Export File"))
+}
+
+fun formatCurrency(amount: Double): String {
+    val formatter = NumberFormat.getNumberInstance(Locale.US)
+    formatter.minimumFractionDigits = 2
+    formatter.maximumFractionDigits = 2
+    return "₱" + formatter.format(amount)
 } 

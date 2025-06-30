@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 
 @Database(
     entities = [OrderRecord::class, OrderItem::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -25,7 +25,9 @@ abstract class OrderDatabase : RoomDatabase() {
                     context.applicationContext,
                     OrderDatabase::class.java,
                     "order_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

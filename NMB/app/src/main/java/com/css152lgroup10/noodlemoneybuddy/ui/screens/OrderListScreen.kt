@@ -33,6 +33,7 @@ import com.css152lgroup10.noodlemoneybuddy.ui.components.*
 import com.css152lgroup10.noodlemoneybuddy.utils.MenuItems
 import kotlinx.coroutines.delay
 import java.util.*
+import com.css152lgroup10.noodlemoneybuddy.utils.formatCurrency
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +56,14 @@ fun OrderListScreen(
 
     // Local state for the current order being created
     var orderItems by remember { mutableStateOf(listOf<OrderItem>()) }
+
+    // Pre-fill orderItems if repeating an order
+    LaunchedEffect(Unit) {
+        val pending = orderViewModel.consumePendingOrderItems()
+        if (pending != null) {
+            orderItems = pending
+        }
+    }
 
     val totalCost = remember(orderItems) {
         orderItems.sumOf { it.getTotalPrice() }
@@ -143,7 +152,7 @@ fun OrderListScreen(
                         Column {
                             PulseAnimation {
                                 Text(
-                                    "Total: ₱${"%.2f".format(totalCost)}",
+                                    "Total: ${formatCurrency(totalCost)}",
                                     style = MaterialTheme.typography.titleLarge.copy(
                                         fontWeight = FontWeight.Bold
                                     ),
@@ -330,7 +339,8 @@ fun OrderListScreen(
                             orderId = "temp", // Will be replaced on save
                             name = menuItem.name,
                             quantity = quantity,
-                            price = menuItem.price
+                            price = menuItem.price,
+                            category = menuItem.category
                         )
                         orderItems = orderItems + newItem
                         showFullScreenQuantityDialog = false
@@ -417,7 +427,7 @@ fun EnhancedOrderItemCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Qty: ${orderItem.quantity} × ₱${"%.2f".format(orderItem.price)}",
+                    text = "Qty: ${orderItem.quantity} × ${formatCurrency(orderItem.price)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -425,7 +435,7 @@ fun EnhancedOrderItemCard(
             
             // Total price
             Text(
-                text = "₱${"%.2f".format(orderItem.getTotalPrice())}",
+                text = "${formatCurrency(orderItem.getTotalPrice())}",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold
                 ),
@@ -571,7 +581,7 @@ fun EnhancedMenuItemCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "₱${"%.2f".format(menuItem.price)}",
+                    text = "${formatCurrency(menuItem.price)}",
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.Bold
                     ),
@@ -688,7 +698,7 @@ fun EnhancedQuantitySelectionDialog(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "₱${"%.2f".format(menuItem.price)} each",
+                            text = "${formatCurrency(menuItem.price)} each",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -731,19 +741,26 @@ fun EnhancedQuantitySelectionDialog(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(32.dp))
-                    
-                    Text(
-                        text = "$currentQuantity",
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f)
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // OutlinedTextField for direct quantity input
+                    OutlinedTextField(
+                        value = currentQuantity.toString(),
+                        onValueChange = { value ->
+                            val intVal = value.toIntOrNull()
+                            if (intVal != null && intVal > 0) {
+                                currentQuantity = intVal
+                            } else if (value.isEmpty()) {
+                                currentQuantity = 1
+                            }
+                        },
+                        label = { Text("Qty") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.width(80.dp)
                     )
-                    
-                    Spacer(modifier = Modifier.width(32.dp))
+
+                    Spacer(modifier = Modifier.width(16.dp))
 
                     IconButton(
                         onClick = { currentQuantity++ },
@@ -783,7 +800,7 @@ fun EnhancedQuantitySelectionDialog(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "₱${"%.2f".format(menuItem.price * currentQuantity)}",
+                            text = "${formatCurrency(menuItem.price * currentQuantity)}",
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
@@ -838,7 +855,7 @@ fun EnhancedAmountTenderedDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            "₱${"%.2f".format(totalCost)}",
+                            "${formatCurrency(totalCost)}",
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
@@ -881,7 +898,7 @@ fun EnhancedAmountTenderedDialog(
                 if (showError) {
                     Text(
                         if (amountTendered == null) "Please enter a valid amount."
-                        else "Amount must be at least ₱${"%.2f".format(totalCost)}",
+                        else "Amount must be at least ${formatCurrency(totalCost)}",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp)
@@ -907,7 +924,7 @@ fun EnhancedAmountTenderedDialog(
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                             Text(
-                                "₱${"%.2f".format(change)}",
+                                "${formatCurrency(change)}",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
@@ -1004,7 +1021,7 @@ fun EnhancedPaymentSuccessDialog(
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                         Text(
-                            "₱${"%.2f".format(changeAmount)}",
+                            "${formatCurrency(changeAmount)}",
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),

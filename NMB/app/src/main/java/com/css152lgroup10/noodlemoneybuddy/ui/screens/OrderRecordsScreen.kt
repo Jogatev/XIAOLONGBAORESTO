@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +27,7 @@ import com.css152lgroup10.noodlemoneybuddy.ui.components.*
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+import com.css152lgroup10.noodlemoneybuddy.utils.formatCurrency
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +42,8 @@ fun OrderRecordsScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showSuccessMessage by remember { mutableStateOf<String?>(null) }
     val orders by orderViewModel.orders.collectAsState()
+    var repeatOrderItems by remember { mutableStateOf<List<com.css152lgroup10.noodlemoneybuddy.data.models.OrderItem>?>(null) }
+    var showRepeatDialog by remember { mutableStateOf(false) }
 
     // Filter orders based on search query
     val filteredOrders = remember(orders, searchQuery) {
@@ -212,7 +216,7 @@ fun OrderRecordsScreen(
                                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
                                         )
                                         Text(
-                                            text = "₱${"%.2f".format(orders.sumOf { it.order.totalAmount })}",
+                                            text = formatCurrency(orders.sumOf { it.order.totalAmount }),
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                             color = MaterialTheme.colorScheme.onPrimary
                                         )
@@ -231,7 +235,11 @@ fun OrderRecordsScreen(
                         OrderRecordCard(
                             orderWithItems = orderWithItems,
                             onClick = { navController.navigate("order_detail/${orderWithItems.order.id}") },
-                            onDelete = { showDeleteDialog = orderWithItems.order.id }
+                            onDelete = { showDeleteDialog = orderWithItems.order.id },
+                            onRepeat = {
+                                repeatOrderItems = orderWithItems.items
+                                showRepeatDialog = true
+                            }
                         )
                     }
                 }
@@ -253,6 +261,22 @@ fun OrderRecordsScreen(
                 onDismiss = { showDeleteDialog = null }
             )
         }
+
+        // Confirmation dialog for repeat order
+        if (showRepeatDialog && repeatOrderItems != null) {
+            ConfirmationDialog(
+                title = "Repeat Order?",
+                message = "Do you want to repeat this order? This will pre-fill the order creation screen with the same items.",
+                onConfirm = {
+                    navController.navigate("order_list?repeat=1")
+                    orderViewModel.setPendingOrderItems(repeatOrderItems!!)
+                    showRepeatDialog = false
+                },
+                onDismiss = { showRepeatDialog = false },
+                confirmText = "Yes, Repeat",
+                dismissText = "Cancel"
+            )
+        }
     }
 }
 
@@ -261,6 +285,7 @@ fun OrderRecordCard(
     orderWithItems: OrderWithItems,
     onClick: () -> Unit,
     onDelete: (() -> Unit)? = null,
+    onRepeat: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val orderRecord = orderWithItems.order
@@ -298,7 +323,7 @@ fun OrderRecordCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         PulseAnimation {
                             Text(
-                                "₱${"%.2f".format(orderRecord.totalAmount)}",
+                                formatCurrency(orderRecord.totalAmount),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -307,6 +332,11 @@ fun OrderRecordCard(
                         if (onDelete != null) {
                             IconButton(onClick = onDelete) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete order record")
+                            }
+                        }
+                        if (onRepeat != null) {
+                            IconButton(onClick = onRepeat) {
+                                Icon(Icons.Filled.Replay, contentDescription = "Repeat order")
                             }
                         }
                     }

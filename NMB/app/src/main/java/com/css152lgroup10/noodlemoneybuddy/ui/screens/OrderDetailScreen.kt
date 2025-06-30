@@ -21,6 +21,7 @@ import com.css152lgroup10.noodlemoneybuddy.utils.MenuItems
 import java.text.SimpleDateFormat
 import java.util.*
 import com.css152lgroup10.noodlemoneybuddy.data.models.OrderWithItems
+import com.css152lgroup10.noodlemoneybuddy.utils.formatCurrency
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,14 +94,15 @@ fun OrderDetailScreen(
         } else {
             if (editIdx >= 0) {
                 items = items.toMutableList().also {
-                    it[editIdx] = it[editIdx].copy(quantity = quantity)
+                    it[editIdx] = it[editIdx].copy(quantity = quantity, category = menuItem.category)
                 }
             } else {
                 items = items + OrderItem(
                     orderId = orderRecord.id,
                     name = menuItem.name,
                     quantity = quantity,
-                    price = menuItem.price
+                    price = menuItem.price,
+                    category = menuItem.category
                 )
             }
         }
@@ -110,14 +112,15 @@ fun OrderDetailScreen(
         if (pendingMenuItem != null && pendingQuantity != null) {
             if (pendingEditIndex >= 0) {
                 items = items.toMutableList().also {
-                    it[pendingEditIndex] = it[pendingEditIndex].copy(quantity = pendingQuantity!!)
+                    it[pendingEditIndex] = it[pendingEditIndex].copy(quantity = pendingQuantity!!, category = pendingMenuItem!!.category)
                 }
             } else {
                 items = items + OrderItem(
                     orderId = orderRecord.id,
                     name = pendingMenuItem!!.name,
                     quantity = pendingQuantity!!,
-                    price = pendingMenuItem!!.price
+                    price = pendingMenuItem!!.price,
+                    category = pendingMenuItem!!.category
                 )
             }
         }
@@ -215,7 +218,7 @@ fun OrderDetailScreen(
                     ) {
                         Text("Total Amount:", fontWeight = FontWeight.Bold)
                         Text(
-                            "₱${"%.2f".format(totalCost)}", 
+                            formatCurrency(totalCost),
                             fontWeight = FontWeight.Bold,
                             color = if (!isValidTendered && isEditing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                         )
@@ -225,7 +228,9 @@ fun OrderDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("Amount Tendered:")
-                        Text("₱${"%.2f".format(orderRecord.amountTendered)}")
+                        Text(
+                            formatCurrency(orderRecord.amountTendered)
+                        )
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -233,7 +238,7 @@ fun OrderDetailScreen(
                     ) {
                         Text("Change Given:")
                         Text(
-                            "₱${"%.2f".format(orderRecord.amountTendered - totalCost)}",
+                            formatCurrency(orderRecord.amountTendered - totalCost),
                             color = if (!isValidTendered && isEditing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -349,9 +354,9 @@ fun OrderDetailScreen(
                 title = { Text("Total Exceeds Tendered Amount") },
                 text = { 
                     Text(
-                        "Adding this item would exceed the tendered amount of ₱${"%.2f".format(orderRecord.amountTendered)}.\n\n" +
-                        "Current total: ₱${"%.2f".format(totalCost)}\n" +
-                        "After change: ₱${"%.2f".format(totalCost + (pendingMenuItem?.price ?: 0.0) * (pendingQuantity ?: 0))}\n\n" +
+                        "Adding this item would exceed the tendered amount of " + formatCurrency(orderRecord.amountTendered) + ".\n\n" +
+                        "Current total: " + formatCurrency(totalCost) + "\n" +
+                        "After change: " + formatCurrency(totalCost + (pendingMenuItem?.price ?: 0.0) * (pendingQuantity ?: 0)) + "\n\n" +
                         "Would you like to update the tendered amount or modify items?"
                     )
                 },
@@ -388,7 +393,7 @@ fun OrderDetailScreen(
                 title = { Text("Update Tendered Amount") },
                 text = {
                     Column {
-                        Text("New total will be: ₱${"%.2f".format(totalCost + (pendingMenuItem?.price ?: 0.0) * (pendingQuantity ?: 0))}")
+                        Text("New total will be: " + formatCurrency(totalCost + (pendingMenuItem?.price ?: 0.0) * (pendingQuantity ?: 0)))
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = newTenderedAmount,
@@ -461,8 +466,8 @@ fun OrderDetailScreen(
                 title = { Text("Cannot Save Changes") },
                 text = { 
                     Text(
-                        "The total amount (₱${"%.2f".format(totalCost)}) is greater than " +
-                        "the tendered amount (₱${"%.2f".format(orderRecord.amountTendered)}).\n\n" +
+                        "The total amount (" + formatCurrency(totalCost) + ") is greater than " +
+                        "the tendered amount (" + formatCurrency(orderRecord.amountTendered) + ").\n\n" +
                         "Please adjust the items or cancel the edit."
                     )
                 },

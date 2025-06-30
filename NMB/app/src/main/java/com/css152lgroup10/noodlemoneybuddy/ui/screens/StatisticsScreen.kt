@@ -27,6 +27,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
+import com.css152lgroup10.noodlemoneybuddy.utils.formatCurrency
+import com.css152lgroup10.noodlemoneybuddy.utils.MenuItems
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +39,12 @@ fun StatisticsScreen(
 ) {
     val context = LocalContext.current
     val ordersWithItems by orderViewModel.orders.collectAsState()
-    val statistics = remember(ordersWithItems) { calculateStatistics(ordersWithItems) }
+    val allCategories = remember { listOf("All") + MenuItems.availableMenuItems.map { it.category }.distinct() }
+    var selectedCategory by remember { mutableStateOf("All") }
+    val filteredOrders = if (selectedCategory == "All") ordersWithItems else ordersWithItems.filter { order ->
+        order.items.any { it.category == selectedCategory }
+    }
+    val statistics = remember(filteredOrders) { calculateStatistics(filteredOrders) }
     var showExportMenu by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -45,14 +52,14 @@ fun StatisticsScreen(
     val coroutineScope = rememberCoroutineScope()
     
     // Process sales data for visualization
-    val salesData = remember(ordersWithItems) { processOrdersForVisualization(ordersWithItems) }
+    val salesData = remember(filteredOrders) { processOrdersForVisualization(filteredOrders) }
     
     // Calculate daily averages for the last 7 days
-    val last7DaysData = remember(ordersWithItems) {
+    val last7DaysData = remember(filteredOrders) {
         val calendar = Calendar.getInstance()
         calendar.add(Calendar.DAY_OF_YEAR, -7)
         val startDate = calendar.time
-        ordersWithItems
+        filteredOrders
             .filter { it.order.timestamp >= startDate }
             .let { processOrdersForVisualization(it) }
     }
@@ -102,7 +109,7 @@ fun StatisticsScreen(
                                 showExportMenu = false
                                 isLoading = true
                                 coroutineScope.launch {
-                                    val success = withContext(Dispatchers.IO) { exportToCSV(context, ordersWithItems) }
+                                    val success = withContext(Dispatchers.IO) { exportToCSV(context, filteredOrders) }
                                     isLoading = false
                                     if (success) {
                                         showSuccessMessage = "CSV exported successfully!"
@@ -121,7 +128,7 @@ fun StatisticsScreen(
                                 showExportMenu = false
                                 isLoading = true
                                 coroutineScope.launch {
-                                    val success = withContext(Dispatchers.IO) { exportToExcel(context, ordersWithItems) }
+                                    val success = withContext(Dispatchers.IO) { exportToExcel(context, filteredOrders) }
                                     isLoading = false
                                     if (success) {
                                         showSuccessMessage = "Excel file exported successfully!"
@@ -176,8 +183,24 @@ fun StatisticsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
+                // Category dropdown
+                var expanded by remember { mutableStateOf(false) }
+                Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                    OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Category: $selectedCategory")
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        allCategories.forEach { category ->
+                            DropdownMenuItem(onClick = {
+                                selectedCategory = category
+                                expanded = false
+                            }, text = { Text(category) })
+                        }
+                    }
+                }
+
                 // Sales Visualization Section
-                if (ordersWithItems.isNotEmpty()) {
+                if (filteredOrders.isNotEmpty()) {
                     Text(
                         "Sales Visualization",
                         style = MaterialTheme.typography.titleLarge,
@@ -210,8 +233,8 @@ fun StatisticsScreen(
                     color = MaterialTheme.colorScheme.primary
                 ) {
                     StatisticRow("Total Orders", statistics.totalOrders.toString())
-                    StatisticRow("Total Revenue", "₱${"%.2f".format(statistics.totalRevenue)}")
-                    StatisticRow("Average Order Value", "₱${"%.2f".format(statistics.averageOrderValue)}")
+                    StatisticRow("Total Revenue", formatCurrency(statistics.totalRevenue))
+                    StatisticRow("Average Order Value", formatCurrency(statistics.averageOrderValue))
                     StatisticRow("Most Popular Item", "${statistics.mostPopularItem} (${statistics.mostPopularItemCount} sold)")
                 }
 
@@ -223,7 +246,7 @@ fun StatisticsScreen(
                     color = MaterialTheme.colorScheme.secondary
                 ) {
                     StatisticRow("Orders Today", statistics.todayOrders.toString())
-                    StatisticRow("Revenue Today", "₱${"%.2f".format(statistics.todayRevenue)}")
+                    StatisticRow("Revenue Today", formatCurrency(statistics.todayRevenue))
                     StatisticRow("Most Popular Item Today", "${statistics.mostPopularItemToday} (${statistics.mostPopularItemTodayCount} sold)")
                 }
 
@@ -235,7 +258,7 @@ fun StatisticsScreen(
                     color = MaterialTheme.colorScheme.tertiary
                 ) {
                     StatisticRow("Orders This Week", statistics.thisWeekOrders.toString())
-                    StatisticRow("Revenue This Week", "₱${"%.2f".format(statistics.thisWeekRevenue)}")
+                    StatisticRow("Revenue This Week", formatCurrency(statistics.thisWeekRevenue))
                     StatisticRow("Most Popular Item This Week", "${statistics.mostPopularItemThisWeek} (${statistics.mostPopularItemThisWeekCount} sold)")
                 }
 
@@ -247,11 +270,11 @@ fun StatisticsScreen(
                     color = MaterialTheme.colorScheme.error
                 ) {
                     StatisticRow("Orders This Month", statistics.thisMonthOrders.toString())
-                    StatisticRow("Revenue This Month", "₱${"%.2f".format(statistics.thisMonthRevenue)}")
+                    StatisticRow("Revenue This Month", formatCurrency(statistics.thisMonthRevenue))
                     StatisticRow("Most Popular Item This Month", "${statistics.mostPopularItemThisMonth} (${statistics.mostPopularItemThisMonthCount} sold)")
                 }
 
-                if (ordersWithItems.isEmpty()) {
+                if (filteredOrders.isEmpty()) {
                     Spacer(modifier = Modifier.height(32.dp))
                     EmptyState(
                         title = "No Data Available",

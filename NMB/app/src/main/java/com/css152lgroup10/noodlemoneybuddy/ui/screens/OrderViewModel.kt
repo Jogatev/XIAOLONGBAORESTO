@@ -11,12 +11,24 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
+import java.util.*
 
 class OrderViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = OrderRepository.getInstance(application)
 
     private val _orders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val orders: StateFlow<List<OrderWithItems>> = _orders.asStateFlow()
+
+    // For repeat order
+    private var _pendingOrderItems: List<OrderItem>? = null
+    fun setPendingOrderItems(items: List<OrderItem>) {
+        _pendingOrderItems = items.map { it.copy(id = UUID.randomUUID().toString(), orderId = "temp") }
+    }
+    fun consumePendingOrderItems(): List<OrderItem>? {
+        val items = _pendingOrderItems
+        _pendingOrderItems = null
+        return items
+    }
 
     init {
         loadOrders()

@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.css152lgroup10.noodlemoneybuddy.data.models.OrderItem
+import com.css152lgroup10.noodlemoneybuddy.utils.formatCurrency
 
 @Composable
 fun OrderItemRow(
@@ -37,12 +38,12 @@ fun OrderItemRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(orderItem.name, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Qty: ${orderItem.quantity} @ ₱${"%.2f".format(orderItem.price)} each",
+                    "Qty: ${orderItem.quantity} @ ${formatCurrency(orderItem.price)} each",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
             Text(
-                "₱${"%.2f".format(orderItem.getTotalPrice())}",
+                "${formatCurrency(orderItem.getTotalPrice())}",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
